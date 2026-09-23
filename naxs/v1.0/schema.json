@@ -1,0 +1,407 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/neuroarchitectures/naxs/main/naxs/v1.0/schema.json",
+  "title": "Neural Architecture Exchange Specification (NAXS) v1.0",
+  "description": "A vendor-independent JSON format for describing neural network architectures as directed graphs of typed, parameterized components. Supports block templates and repetition.",
+  "type": "object",
+  "required": ["spec_version", "id", "name", "components", "connections"],
+  "properties": {
+    "spec_version": {
+      "type": "string",
+      "description": "NAXS specification version.",
+      "enum": ["1.0"]
+    },
+    "id": {
+      "type": "string",
+      "description": "Unique architecture identifier (URL-safe slug).",
+      "pattern": "^[a-zA-Z0-9_-]+$",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable display name.",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "description": "Free-text description of the architecture."
+    },
+    "category": {
+      "type": "string",
+      "description": "Domain category (e.g. 'Computer Vision', 'NLP', 'Recommendation')."
+    },
+    "icon": {
+      "type": "string",
+      "description": "Emoji or icon name for UI display."
+    },
+    "real_param_count": {
+      "type": "integer",
+      "description": "Real-world parameter count (for evaluation/cross-check).",
+      "minimum": 0
+    },
+    "block_templates": {
+      "type": "array",
+      "description": "Reusable subgraph definitions.",
+      "items": { "$ref": "#/$defs/blockTemplate" }
+    },
+    "components": {
+      "type": "array",
+      "description": "List of component objects (graph nodes).",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/component" }
+    },
+    "connections": {
+      "type": "array",
+      "description": "List of connection objects (graph edges).",
+      "items": { "$ref": "#/$defs/connection" }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Arbitrary vendor-specific metadata.",
+      "additionalProperties": true
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    }
+  },
+  "additionalProperties": true,
+
+  "$defs": {
+    "component": {
+      "type": "object",
+      "description": "A single node in the architecture graph.",
+      "required": ["id", "type", "name", "params", "inputs", "outputs"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique component identifier within the document.",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "description": "Operator type identifier.",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable display name for this instance.",
+          "minLength": 1
+        },
+        "params": {
+          "type": "object",
+          "description": "Parameter key-value map. Values must be int, float, bool, string, or array.",
+          "additionalProperties": { "$ref": "#/$defs/paramValue" }
+        },
+        "inputs": {
+          "type": "array",
+          "description": "IDs of components that feed into this component.",
+          "items": { "type": "string" }
+        },
+        "outputs": {
+          "type": "array",
+          "description": "IDs of components this component feeds into.",
+          "items": { "type": "string" }
+        },
+        "scope": {
+          "type": "string",
+          "description": "Hierarchical scope path using dot notation."
+        },
+        "position": {
+          "$ref": "#/$defs/position"
+        },
+        "input_shape": {
+          "type": "array",
+          "description": "Declared input tensor shape.",
+          "items": {
+            "oneOf": [
+              { "type": "integer" },
+              { "type": "string" }
+            ]
+          }
+        },
+        "notes": {
+          "type": "string",
+          "description": "Free-text annotation for this component."
+        },
+        "block_ref": {
+          "type": "string",
+          "description": "Reference to a block template by id."
+        },
+        "repeat": {
+          "$ref": "#/$defs/repeatDirective"
+        }
+      },
+      "additionalProperties": true
+    },
+
+    "connection": {
+      "type": "object",
+      "description": "A directed edge in the architecture graph.",
+      "required": ["id", "from", "to"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique connection identifier within the document.",
+          "minLength": 1
+        },
+        "from": {
+          "type": "string",
+          "description": "ID of the source component.",
+          "minLength": 1
+        },
+        "to": {
+          "type": "string",
+          "description": "ID of the target component.",
+          "minLength": 1
+        },
+        "fromPort": {
+          "type": "string",
+          "description": "Source port label (rendering hint)."
+        },
+        "toPort": {
+          "type": "string",
+          "description": "Target port label (rendering hint)."
+        }
+      },
+      "additionalProperties": true
+    },
+
+    "position": {
+      "type": "object",
+      "description": "Visual layout position (rendering hint only).",
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      },
+      "additionalProperties": true
+    },
+
+    "paramValue": {
+      "description": "A parameter value: integer, float, boolean, string, or array of integers/strings. Strings starting with $ are parameter references and objects with $expr are expressions.",
+      "anyOf": [
+        { "type": "integer" },
+        { "type": "number" },
+        { "type": "boolean" },
+        { "type": "string" },
+        {
+          "type": "object",
+          "properties": {
+            "$expr": { "type": "string" }
+          },
+          "required": ["$expr"],
+          "additionalProperties": false
+        },
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "integer" },
+              { "type": "string" }
+            ]
+          }
+        }
+      ]
+    },
+
+    "blockTemplate": {
+      "type": "object",
+      "description": "A reusable, parameterized subgraph definition.",
+      "required": ["id", "nodes"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique block template identifier within the document.",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the block."
+        },
+        "params": {
+          "type": "object",
+          "description": "Parameter schema: each key is a parameter name, value describes its type.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["integer", "float", "boolean", "string", "array"]
+              },
+              "description": { "type": "string" },
+              "default": {}
+            }
+          }
+        },
+        "nodes": {
+          "type": "array",
+          "description": "Component prototypes forming the subgraph topology.",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/templateNode" }
+        },
+        "edges": {
+          "type": "array",
+          "description": "Internal connections between template nodes.",
+          "items": { "$ref": "#/$defs/templateEdge" }
+        },
+        "interface": {
+          "$ref": "#/$defs/blockInterface"
+        }
+      },
+      "additionalProperties": true
+    },
+
+    "templateNode": {
+      "type": "object",
+      "description": "A component prototype within a block template. Same as a component but params may use $-references.",
+      "required": ["id", "type"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Node identifier within the template. Unique within the template.",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "description": "Operator type identifier."
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable display name."
+        },
+        "params": {
+          "type": "object",
+          "description": "Parameter values. Values may be $-references ($paramName, $i), {$expr: ...} expressions, or literals.",
+          "additionalProperties": { "$ref": "#/$defs/paramValue" }
+        },
+        "block_ref": {
+          "type": "string",
+          "description": "Reference to another block template (nested blocks)."
+        },
+        "repeat": {
+          "$ref": "#/$defs/repeatDirective"
+        }
+      },
+      "additionalProperties": true
+    },
+
+    "templateEdge": {
+      "type": "object",
+      "description": "An internal connection between template nodes.",
+      "required": ["from", "to"],
+      "properties": {
+        "from": {
+          "type": "string",
+          "description": "Source node id within the template."
+        },
+        "to": {
+          "type": "string",
+          "description": "Target node id within the template."
+        }
+      },
+      "additionalProperties": true
+    },
+
+    "blockInterface": {
+      "type": "object",
+      "description": "External interface of a block template.",
+      "properties": {
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "description": { "type": "string" }
+            },
+            "additionalProperties": true
+          }
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "source_node": {
+                "type": "string",
+                "description": "Node id within the template that provides this output."
+              },
+              "description": { "type": "string" }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+
+    "repeatDirective": {
+      "type": "object",
+      "description": "Repetition directive: expand this component into N copies.",
+      "required": ["count"],
+      "properties": {
+        "count": {
+          "description": "Number of instances. May be an integer or a $-reference to a template parameter.",
+          "oneOf": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "string", "pattern": "^\\$.+" }
+          ]
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["sequential", "parallel", "stacked"],
+          "default": "sequential",
+          "description": "How instances connect to each other."
+        },
+        "overrides": {
+          "type": "array",
+          "description": "Per-instance parameter overrides.",
+          "items": {
+            "type": "object",
+            "required": ["index", "params"],
+            "properties": {
+              "index": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Instance index to override (0-based)."
+              },
+              "params": {
+                "type": "object",
+                "description": "Parameter values to override for this instance.",
+                "additionalProperties": { "$ref": "#/$defs/paramValue" }
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+
+    "provenance": {
+      "type": "object",
+      "description": "Origin and transformation history.",
+      "properties": {
+        "source": { "type": "string" },
+        "imported_at": { "type": "string", "format": "date-time" },
+        "imported_by": { "type": "string" },
+        "original_format": { "type": "string" },
+        "transformations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "operation": { "type": "string" },
+              "timestamp": { "type": "string", "format": "date-time" },
+              "description": { "type": "string" }
+            }
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

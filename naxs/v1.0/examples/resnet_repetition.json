@@ -1,0 +1,244 @@
+{
+  "$schema": "https://raw.githubusercontent.com/neuroarchitectures/naxs/main/naxs/v1.0/schema.json",
+  "spec_version": "1.0",
+  "id": "resnet-50-repetition",
+  "name": "ResNet-50 (with Block Templates)",
+  "description": "ResNet-50 represented with block templates. Shows per-instance parameter overrides for stages with different channel counts and block repetitions.",
+  "category": "Computer Vision",
+  "block_templates": [
+    {
+      "id": "bottleneck_block",
+      "description": "Bottleneck residual block: 1x1 conv → 3x3 conv → 1x1 conv, with residual skip connection",
+      "params": {
+        "inChannels": { "type": "integer", "description": "Input channel count" },
+        "midChannels": { "type": "integer", "description": "Bottleneck (mid) channel count" },
+        "outChannels": { "type": "integer", "description": "Output channel count" },
+        "stride": { "type": "integer", "description": "Stride for the 3x3 conv" }
+      },
+      "nodes": [
+        {
+          "id": "conv1",
+          "type": "conv2d",
+          "name": "Conv1x1",
+          "params": {
+            "inChannels": "$inChannels",
+            "outChannels": "$midChannels",
+            "kernelSize": 1,
+            "stride": 1
+          }
+        },
+        {
+          "id": "bn1",
+          "type": "batchNorm",
+          "name": "BN1",
+          "params": { "numFeatures": "$midChannels" }
+        },
+        {
+          "id": "conv2",
+          "type": "conv2d",
+          "name": "Conv3x3",
+          "params": {
+            "inChannels": "$midChannels",
+            "outChannels": "$midChannels",
+            "kernelSize": 3,
+            "stride": "$stride",
+            "padding": 1
+          }
+        },
+        {
+          "id": "bn2",
+          "type": "batchNorm",
+          "name": "BN2",
+          "params": { "numFeatures": "$midChannels" }
+        },
+        {
+          "id": "conv3",
+          "type": "conv2d",
+          "name": "Conv1x1_proj",
+          "params": {
+            "inChannels": "$midChannels",
+            "outChannels": "$outChannels",
+            "kernelSize": 1,
+            "stride": 1
+          }
+        },
+        {
+          "id": "bn3",
+          "type": "batchNorm",
+          "name": "BN3",
+          "params": { "numFeatures": "$outChannels" }
+        },
+        {
+          "id": "add",
+          "type": "add",
+          "name": "ResidualAdd",
+          "params": {}
+        }
+      ],
+      "edges": [
+        { "from": "conv1", "to": "bn1" },
+        { "from": "bn1", "to": "conv2" },
+        { "from": "conv2", "to": "bn2" },
+        { "from": "bn2", "to": "conv3" },
+        { "from": "conv3", "to": "bn3" },
+        { "from": "bn3", "to": "add" }
+      ],
+      "interface": {
+        "inputs": [
+          { "name": "x", "description": "Input feature map" }
+        ],
+        "outputs": [
+          { "name": "y", "source_node": "add", "description": "Output feature map" }
+        ]
+      }
+    }
+  ],
+  "components": [
+    {
+      "id": "input",
+      "type": "input",
+      "name": "Input",
+      "params": { "shape": [1, 3, 224, 224] },
+      "inputs": [],
+      "outputs": ["stem_conv"]
+    },
+    {
+      "id": "stem_conv",
+      "type": "conv2d",
+      "name": "StemConv",
+      "params": { "inChannels": 3, "outChannels": 64, "kernelSize": 7, "stride": 2, "padding": 3 },
+      "inputs": ["input"],
+      "outputs": ["stem_bn"],
+      "scope": "stem"
+    },
+    {
+      "id": "stem_bn",
+      "type": "batchNorm",
+      "name": "StemBN",
+      "params": { "numFeatures": 64 },
+      "inputs": ["stem_conv"],
+      "outputs": ["stage1"],
+      "scope": "stem"
+    },
+    {
+      "id": "stage1",
+      "type": "block",
+      "name": "Stage1_Bottlenecks",
+      "block_ref": "bottleneck_block",
+      "params": {
+        "inChannels": 64,
+        "midChannels": 64,
+        "outChannels": 256,
+        "stride": 1
+      },
+      "repeat": { "count": 3, "mode": "sequential" },
+      "inputs": ["stem_bn"],
+      "outputs": ["stage2"],
+      "scope": "stage1.block.$i"
+    },
+    {
+      "id": "stage2",
+      "type": "block",
+      "name": "Stage2_Bottlenecks",
+      "block_ref": "bottleneck_block",
+      "params": {
+        "inChannels": 256,
+        "midChannels": 128,
+        "outChannels": 512,
+        "stride": 2
+      },
+      "repeat": { "count": 4, "mode": "sequential" },
+      "inputs": ["stage1"],
+      "outputs": ["stage3"],
+      "scope": "stage2.block.$i"
+    },
+    {
+      "id": "stage3",
+      "type": "block",
+      "name": "Stage3_Bottlenecks",
+      "block_ref": "bottleneck_block",
+      "params": {
+        "inChannels": 512,
+        "midChannels": 256,
+        "outChannels": 1024,
+        "stride": 2
+      },
+      "repeat": { "count": 6, "mode": "sequential" },
+      "inputs": ["stage2"],
+      "outputs": ["stage4"],
+      "scope": "stage3.block.$i"
+    },
+    {
+      "id": "stage4",
+      "type": "block",
+      "name": "Stage4_Bottlenecks",
+      "block_ref": "bottleneck_block",
+      "params": {
+        "inChannels": 1024,
+        "midChannels": 512,
+        "outChannels": 2048,
+        "stride": 2
+      },
+      "repeat": { "count": 3, "mode": "sequential" },
+      "inputs": ["stage3"],
+      "outputs": ["pool"],
+      "scope": "stage4.block.$i"
+    },
+    {
+      "id": "pool",
+      "type": "custom",
+      "name": "GlobalAvgPool",
+      "params": { "mode": "avg", "spatial": true },
+      "inputs": ["stage4"],
+      "outputs": ["fc"],
+      "scope": "head"
+    },
+    {
+      "id": "fc",
+      "type": "linear",
+      "name": "FC",
+      "params": { "inFeatures": 2048, "outFeatures": 1000 },
+      "inputs": ["pool"],
+      "outputs": ["output"],
+      "scope": "head"
+    },
+    {
+      "id": "output",
+      "type": "output",
+      "name": "Output",
+      "params": {},
+      "inputs": ["fc"],
+      "outputs": []
+    }
+  ],
+  "connections": [
+    { "id": "c1", "from": "input", "to": "stem_conv", "fromPort": "bottom", "toPort": "top" },
+    { "id": "c2", "from": "stem_conv", "to": "stem_bn", "fromPort": "bottom", "toPort": "top" },
+    { "id": "c3", "from": "stem_bn", "to": "stage1", "fromPort": "bottom", "toPort": "top" },
+    { "id": "c4", "from": "stage1", "to": "stage2", "fromPort": "bottom", "toPort": "top" },
+    { "id": "c5", "from": "stage2", "to": "stage3", "fromPort": "bottom", "toPort": "top" },
+    { "id": "c6", "from": "stage3", "to": "stage4", "fromPort": "bottom", "toPort": "top" },
+    { "id": "c7", "from": "stage4", "to": "pool", "fromPort": "bottom", "toPort": "top" },
+    { "id": "c8", "from": "pool", "to": "fc", "fromPort": "bottom", "toPort": "top" },
+    { "id": "c9", "from": "fc", "to": "output", "fromPort": "bottom", "toPort": "top" }
+  ],
+  "metadata": {
+    "framework": "pytorch",
+    "paper": "https://arxiv.org/abs/1512.03385",
+    "license": "mit",
+    "expanded_component_count": 176,
+    "compressed_component_count": 10,
+    "repetition_summary": {
+      "stage1": "3 × bottleneck_block",
+      "stage2": "4 × bottleneck_block",
+      "stage3": "6 × bottleneck_block",
+      "stage4": "3 × bottleneck_block",
+      "total_repeated_blocks": 16
+    }
+  },
+  "provenance": {
+    "source": "atlas/architectures/resnet-50/model.json",
+    "original_format": "atlas-model-json",
+    "imported_by": "manual"
+  }
+}
