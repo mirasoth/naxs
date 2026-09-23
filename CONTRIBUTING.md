@@ -19,7 +19,7 @@ Thank you for your interest in improving the Neural Architecture Exchange Specif
 ## Proposing Changes to the Specification
 
 1. Fork the repository and create a branch from `main`.
-2. Make your change to `specification.md` (and `naxs/v1.0/schema.json` if structural).
+2. Make your change to `specification.md` (and `naxs/v0.1/schema.json` if structural).
 3. If your change affects validation behavior, update `pynaxs` and its tests accordingly.
 4. Ensure the test suite passes:
 

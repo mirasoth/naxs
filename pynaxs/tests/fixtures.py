@@ -1,4 +1,9 @@
-"""Test fixtures: valid and invalid NAXS documents for testing each validation rule."""
+"""Test fixtures for the validator.
+
+Provides valid and invalid NAXS documents — roughly one per
+validation rule — plus a helper to materialize them as temporary
+JSON files.
+"""
 
 import json
 import tempfile
@@ -8,7 +13,7 @@ from pathlib import Path
 # ─── Valid documents ──────────────────────────────────────────────────────────
 
 VALID_MINIMAL = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "test-mlp",
     "name": "Test MLP",
     "description": "A minimal valid document for testing.",
@@ -38,7 +43,7 @@ VALID_MINIMAL = {
 }
 
 VALID_WITH_BLOCK_TEMPLATE = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "test-block",
     "name": "Test Block Arch",
     "description": "Architecture using block templates and repetition.",
@@ -114,7 +119,7 @@ VALID_WITH_BLOCK_TEMPLATE = {
 }
 
 VALID_WITH_EXPR = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "test-expr",
     "name": "Test Expr",
     "description": "Architecture using $expr parameter derivation.",
@@ -174,14 +179,14 @@ VALID_WITH_EXPR = {
 # ─── Invalid documents (one per rule) ─────────────────────────────────────────
 
 INVALID_MISSING_REQUIRED = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "bad-missing",
     "name": "Missing Required Fields",
     # Missing: components, connections
 }
 
 INVALID_DUPLICATE_COMPONENT_ID = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "bad-dup-id",
     "name": "Duplicate IDs",
     "description": "Two components with the same id.",
@@ -193,7 +198,7 @@ INVALID_DUPLICATE_COMPONENT_ID = {
 }
 
 INVALID_DANGLING_REF = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "bad-dangling",
     "name": "Dangling Reference",
     "description": "Component references non-existent id.",
@@ -204,7 +209,7 @@ INVALID_DANGLING_REF = {
 }
 
 INVALID_INCONSISTENT_IO = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "bad-inconsistent",
     "name": "Inconsistent IO",
     "description": "A lists B in outputs but B doesn't list A in inputs.",
@@ -216,7 +221,7 @@ INVALID_INCONSISTENT_IO = {
 }
 
 INVALID_CONNECTION_MISMATCH = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "bad-conn",
     "name": "Connection Mismatch",
     "description": "Connection from A to B but A doesn't list B in outputs.",
@@ -230,7 +235,7 @@ INVALID_CONNECTION_MISMATCH = {
 }
 
 INVALID_NULL_PARAM = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "bad-null-param",
     "name": "Null Param",
     "description": "Parameter value is null.",
@@ -241,7 +246,7 @@ INVALID_NULL_PARAM = {
 }
 
 INVALID_NESTED_PARAM = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "bad-nested-param",
     "name": "Nested Object Param",
     "description": "Parameter value is a nested object.",
@@ -252,7 +257,7 @@ INVALID_NESTED_PARAM = {
 }
 
 INVALID_DUPLICATE_CONN_ID = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "bad-dup-conn",
     "name": "Duplicate Connection ID",
     "description": "Two connections with the same id.",
@@ -267,7 +272,7 @@ INVALID_DUPLICATE_CONN_ID = {
 }
 
 INVALID_BLOCK_REF = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "bad-block-ref",
     "name": "Bad Block Ref",
     "description": "block_ref references non-existent template.",
@@ -283,7 +288,7 @@ INVALID_BLOCK_REF = {
 }
 
 INVALID_DUP_NODE_ID = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "bad-dup-node",
     "name": "Duplicate Node ID in Template",
     "description": "Two nodes with same id in a template.",
@@ -305,7 +310,7 @@ INVALID_DUP_NODE_ID = {
 }
 
 INVALID_EDGE_REF = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "bad-edge-ref",
     "name": "Bad Edge Ref",
     "description": "Edge references non-existent node.",
@@ -328,7 +333,7 @@ INVALID_EDGE_REF = {
 }
 
 INVALID_BAD_REPEAT_COUNT = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "bad-repeat",
     "name": "Bad Repeat Count",
     "description": "repeat.count is 0.",
@@ -352,7 +357,7 @@ INVALID_BAD_REPEAT_COUNT = {
 }
 
 INVALID_BAD_REPEAT_MODE = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "bad-repeat-mode",
     "name": "Bad Repeat Mode",
     "description": "repeat.mode is invalid.",
@@ -376,7 +381,7 @@ INVALID_BAD_REPEAT_MODE = {
 }
 
 INVALID_OVERRIDE_OUT_OF_RANGE = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "bad-override",
     "name": "Override Out of Range",
     "description": "Override index exceeds count.",
@@ -402,7 +407,7 @@ INVALID_OVERRIDE_OUT_OF_RANGE = {
 }
 
 INVALID_UNRESOLVED_PARAM = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "bad-unresolved-param",
     "name": "Unresolved Param Ref",
     "description": "$-reference doesn't resolve to declared param.",
@@ -423,7 +428,7 @@ INVALID_UNRESOLVED_PARAM = {
 }
 
 INVALID_BAD_EXPR = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "bad-expr",
     "name": "Bad Expression",
     "description": "$expr references undeclared parameter.",
@@ -445,7 +450,7 @@ INVALID_BAD_EXPR = {
 }
 
 INVALID_CIRCULAR_REF = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "bad-circular",
     "name": "Circular Block Ref",
     "description": "Template A references B which references A.",
@@ -485,7 +490,7 @@ INVALID_BAD_VERSION = {
 }
 
 INVALID_EMPTY_COMPONENTS = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "bad-empty",
     "name": "Empty Components",
     "description": "components array is empty.",
@@ -494,7 +499,7 @@ INVALID_EMPTY_COMPONENTS = {
 }
 
 INVALID_MISSING_COMPONENT_FIELDS = {
-    "spec_version": "1.0",
+    "spec_version": "0.1",
     "id": "bad-missing-comp-fields",
     "name": "Missing Component Fields",
     "description": "Component missing required fields.",
@@ -506,14 +511,18 @@ INVALID_MISSING_COMPONENT_FIELDS = {
 
 
 def write_temp_json(doc: dict) -> str:
-    """Write a dict to a temporary JSON file and return the path."""
+    """Write ``doc`` to a temporary JSON file and return its path.
+
+    The caller is responsible for deleting the file.
+    """
     f = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
     json.dump(doc, f)
     f.close()
     return f.name
 
 
-# Map of test fixture name -> (document, expected_valid)
+# Every fixture mapped as name -> (document, expected_valid),
+# suitable for parametrized tests.
 ALL_FIXTURES = {
     # Valid
     "valid_minimal": (VALID_MINIMAL, True),

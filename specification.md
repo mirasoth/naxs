@@ -1,6 +1,6 @@
 # Neural Architecture Exchange Specification (NAXS)
 
-**Version:** 1.0  
+**Version:** 0.1  
 **Status:** Draft for Public Review  
 **License:** CC-BY-4.0 / Apache-2.0 (dual)  
 **Repository:** https://github.com/neuroarchitectures/naxs  
@@ -48,7 +48,7 @@
 
 ```json
 {
-  "spec_version": "1.0",          // REQUIRED — must be "1.0"
+  "spec_version": "0.1",          // REQUIRED — must be "0.1"
   "id": "my-arch",                // REQUIRED — URL-safe slug
   "name": "My Architecture",      // REQUIRED — display name
   "components": [ ... ],          // REQUIRED — graph nodes (≥1)
@@ -138,8 +138,8 @@ A NAXS document is a single JSON object with the following top-level structure:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/neuroarchitectures/naxs/main/naxs/v1.0/schema.json",
-  "spec_version": "1.0",
+  "$schema": "https://raw.githubusercontent.com/neuroarchitectures/naxs/main/naxs/v0.1/schema.json",
+  "spec_version": "0.1",
   "id": "bert-base",
   "name": "BERT-Base",
   "description": "BERT-Base: 12-layer transformer encoder, hidden size 768.",
@@ -152,7 +152,7 @@ A NAXS document is a single JSON object with the following top-level structure:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `spec_version` | string | NAXS specification version. Must be `"1.0"`. |
+| `spec_version` | string | NAXS specification version. Must be `"0.1"`. |
 | `id` | string | Unique architecture identifier. Should be a URL-safe slug (e.g. `"bert-base"`, `"resnet-50"`). |
 | `name` | string | Human-readable display name. |
 | `components` | array | List of component objects (the graph nodes). Must contain at least one component. |
@@ -290,7 +290,7 @@ NAXS maintains a registry of standard operator types. Each type defines a name, 
 
 ### 7.1 Standard Operator Types
 
-The following types are recognized in NAXS 1.0. Types not in this list are treated as `custom` — consumers should preserve them but may not interpret their parameters.
+The following types are recognized in NAXS 0.1. Types not in this list are treated as `custom` — consumers should preserve them but may not interpret their parameters.
 
 #### Core / I/O
 
@@ -442,7 +442,7 @@ Consumers MAY use either form for graph construction but SHOULD verify consisten
 
 ### 8.5 Port-Level Connectivity (Future Extension)
 
-NAXS 1.0 uses node-level connectivity (edges connect components, not specific ports). A future version may introduce explicit port references:
+NAXS 0.1 uses node-level connectivity (edges connect components, not specific ports). A future version may introduce explicit port references:
 
 ```json
 {
@@ -542,7 +542,7 @@ NAXS uses semantic versioning:
 - **Minor** (1.0 → 1.1): New optional fields, new operator types, new standard metadata keys.
 - **Patch** (1.0.0 → 1.0.1): Clarifications, documentation fixes, schema corrections.
 
-The `spec_version` field uses major.minor format (e.g. `"1.0"`).
+The `spec_version` field uses major.minor format (e.g. `"0.1"`).
 
 Consumers MUST check `spec_version` and reject only if the major version is higher than supported. Unknown minor version fields MUST be preserved.
 
@@ -640,7 +640,7 @@ The smallest valid NAXS document:
 
 ```json
 {
-  "spec_version": "1.0",
+  "spec_version": "0.1",
   "id": "minimal-mlp",
   "name": "Minimal MLP",
   "components": [
@@ -679,7 +679,7 @@ The smallest valid NAXS document:
 
 ```json
 {
-  "spec_version": "1.0",
+  "spec_version": "0.1",
   "id": "bert-base",
   "name": "BERT-Base",
   "description": "BERT-Base: 12-layer transformer encoder, hidden size 768, 12 attention heads.",
@@ -778,7 +778,7 @@ The smallest valid NAXS document:
 
 ```json
 {
-  "spec_version": "1.0",
+  "spec_version": "0.1",
   "id": "resnet-50",
   "name": "ResNet-50",
   "description": "ResNet-50: deep residual CNN with 50 layers, bottleneck blocks.",
@@ -840,7 +840,7 @@ The smallest valid NAXS document:
 
 ```json
 {
-  "spec_version": "1.0",
+  "spec_version": "0.1",
   "id": "llama3-8b",
   "name": "Llama-3-8B",
   "description": "Llama-3-8B: 32-layer decoder-only transformer with GQA, RoPE, SwiGLU FFN.",
@@ -907,7 +907,7 @@ Demonstrates non-transformer architecture with SSM, conv1d, and gating:
 
 ```json
 {
-  "spec_version": "1.0",
+  "spec_version": "0.1",
   "id": "mamba-block",
   "name": "Mamba SSM Block",
   "description": "Mamba State Space Model block — selective SSM with causal conv + gating.",
@@ -1022,7 +1022,7 @@ Demonstrates a non-neural-network architecture using `custom` operator types:
 
 ```json
 {
-  "spec_version": "1.0",
+  "spec_version": "0.1",
   "id": "3dgs",
   "name": "3D Gaussian Splatting",
   "description": "Real-time radiance field rendering with 3D Gaussians and tile-based splatting.",
@@ -1124,7 +1124,7 @@ A **validator** is conforming if it:
 A machine-readable JSON Schema is provided alongside this specification at:
 
 ```
-naxs/v1.0/schema.json
+naxs/v0.1/schema.json
 ```
 
 The schema defines:
@@ -1139,16 +1139,16 @@ The JSON Schema is normative for structural validation. This document is normati
 
 ## 22. Migration from Atlas `model.json`
 
-The NAXS 1.0 format is a superset of the existing Atlas `model.json` format. Migration is straightforward:
+The NAXS 0.1 format is a superset of the existing Atlas `model.json` format. Migration is straightforward:
 
-| Atlas `model.json` | NAXS 1.0 | Action |
+| Atlas `model.json` | NAXS 0.1 | Action |
 |---------------------|----------|--------|
 | `id` | `id` | Unchanged |
 | `name` | `name` | Unchanged |
 | `description` | `description` | Unchanged (optional in both) |
 | `components` | `components` | Unchanged |
 | `connections` | `connections` | Unchanged |
-| (none) | `spec_version` | **Add** `"1.0"` |
+| (none) | `spec_version` | **Add** `"0.1"` |
 | `realParamCount` | `real_param_count` | Rename (snake_case) |
 | `icon` | `icon` | Unchanged |
 | `category` | `category` | Unchanged |
@@ -1159,7 +1159,7 @@ Component fields (`id`, `type`, `name`, `params`, `inputs`, `outputs`, `scope`, 
 
 Connection fields (`id`, `from`, `to`, `fromPort`, `toPort`) are unchanged.
 
-**Migration is additive only** — no existing field is removed or renamed (except `realParamCount` → `real_param_count`). A `model.json` file with `spec_version: "1.0"` added is a valid NAXS document.
+**Migration is additive only** — no existing field is removed or renamed (except `realParamCount` → `real_param_count`). A `model.json` file with `spec_version: "0.1"` added is a valid NAXS document.
 
 ---
 
@@ -1173,7 +1173,7 @@ Connection fields (`id`, `from`, `to`, `fromPort`, `toPort`) are unchanged.
 | **Operator Type** | A named category of computation (e.g. `conv2d`, `multiHeadAttention`). |
 | **Parameter** | A configurable property of a component (e.g. `numHeads`, `kernelSize`). |
 | **Scope** | A dot-separated hierarchical path grouping components (e.g. `layer.0.attention`). |
-| **Port** | A named connection point on a component. NAXS 1.0 uses visual port labels; semantic ports are reserved for future versions. |
+| **Port** | A named connection point on a component. NAXS 0.1 uses visual port labels; semantic ports are reserved for future versions. |
 | **Block** | A reusable sub-graph with an explicit interface. NAXS defines block templates ([§25](#25-block-templates-and-repetition)) that can be referenced and repeated. Blocks can also be represented as architectures with scoped components. |
 | **Provenance** | Information about how a document was created or transformed. |
 | **Metadata** | Vendor-specific information that does not affect architectural semantics. |
@@ -1184,7 +1184,7 @@ Connection fields (`id`, `from`, `to`, `fromPort`, `toPort`) are unchanged.
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.0 | 2026-09-23 | Initial public draft. Includes block templates ([§25](#25-block-templates-and-repetition)): reusable subgraph definitions, `block_ref` components, `repeat` directives for layer/block repetition, parameter binding, and scope index substitution. |
+| 0.1 | 2026-09-23 | Initial public draft. Includes block templates ([§25](#25-block-templates-and-repetition)): reusable subgraph definitions, `block_ref` components, `repeat` directives for layer/block repetition, parameter binding, and scope index substitution. |
 
 ---
 
@@ -1471,7 +1471,7 @@ The following NAXS document represents BERT-Base (12 transformer layers) using a
 
 ```json
 {
-  "spec_version": "1.0",
+  "spec_version": "0.1",
   "id": "bert-base",
   "name": "BERT-Base",
   "description": "BERT-Base: 12-layer transformer encoder, hidden size 768, 12 attention heads.",

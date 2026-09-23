@@ -1,4 +1,4 @@
-"""Tests for pynaxs validator — covers all validation rules from the NAXS spec."""
+"""Tests for the pynaxs validator, covering every validation rule."""
 
 import json
 import os
@@ -41,7 +41,7 @@ class TestValidDocuments(unittest.TestCase):
 
 
 class TestStructuralValidation(unittest.TestCase):
-    """§13.1 Structural Integrity rules."""
+    """Structural integrity rules."""
 
     def setUp(self):
         self.validator = NaxsValidator()
@@ -93,7 +93,7 @@ class TestStructuralValidation(unittest.TestCase):
 
 
 class TestConsistencyValidation(unittest.TestCase):
-    """§13.2 Consistency rules."""
+    """Consistency rules."""
 
     def setUp(self):
         self.validator = NaxsValidator()
@@ -114,7 +114,7 @@ class TestConsistencyValidation(unittest.TestCase):
 
 
 class TestParameterValidity(unittest.TestCase):
-    """§13.3 Parameter Validity rules."""
+    """Parameter validity rules."""
 
     def setUp(self):
         self.validator = NaxsValidator()
@@ -135,7 +135,7 @@ class TestParameterValidity(unittest.TestCase):
 
 
 class TestBlockTemplateValidation(unittest.TestCase):
-    """§25.11 Block Template validation rules."""
+    """Block template validation rules."""
 
     def setUp(self):
         self.validator = NaxsValidator()
@@ -205,14 +205,14 @@ class TestBlockTemplateValidation(unittest.TestCase):
 
 
 class TestSoftValidation(unittest.TestCase):
-    """§13.4 Soft validation warnings."""
+    """Soft validation warnings."""
 
     def setUp(self):
         self.validator = NaxsValidator()
 
     def test_missing_description_warning(self):
         doc = {
-            "spec_version": "1.0",
+            "spec_version": "0.1",
             "id": "test",
             "name": "Test",
             "components": [
@@ -227,7 +227,7 @@ class TestSoftValidation(unittest.TestCase):
 
     def test_missing_scope_warning(self):
         doc = {
-            "spec_version": "1.0",
+            "spec_version": "0.1",
             "id": "test",
             "name": "Test",
             "description": "Has description.",
@@ -243,7 +243,7 @@ class TestSoftValidation(unittest.TestCase):
 
     def test_custom_empty_params_warning(self):
         doc = {
-            "spec_version": "1.0",
+            "spec_version": "0.1",
             "id": "test",
             "name": "Test",
             "description": "Test.",
@@ -312,9 +312,9 @@ class TestAllFixtures(unittest.TestCase):
 
 
 class TestNaxsExampleFiles(unittest.TestCase):
-    """Validate all NAXS example files in the repository."""
+    """Validate the NAXS example files shipped alongside the package."""
 
-    EXAMPLES_DIR = Path(__file__).resolve().parent.parent.parent / "naxs" / "v1.0" / "examples"
+    EXAMPLES_DIR = Path(__file__).resolve().parent.parent.parent / "naxs" / "v0.1" / "examples"
 
     def setUp(self):
         self.validator = NaxsValidator()

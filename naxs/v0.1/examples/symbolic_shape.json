@@ -1,5 +1,5 @@
 {
-  "spec_version": "1.0",
+  "spec_version": "0.1",
   "id": "symbolic-shape-example",
   "name": "Symbolic Shape Example",
   "description": "Demonstrates symbolic (dynamic) dimensions in tensor shapes.",

@@ -1,5 +1,5 @@
 {
-  "spec_version": "1.0",
+  "spec_version": "0.1",
   "id": "minimal-mlp",
   "name": "Minimal MLP",
   "description": "The smallest valid NAXS document: a single linear layer.",

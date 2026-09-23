@@ -1,4 +1,9 @@
-"""pynaxs CLI — command-line interface for NAXS validation."""
+"""Command-line interface for pynaxs.
+
+Provides the ``pynaxs`` console script and the ``python -m pynaxs``
+entry point, with a ``validate`` subcommand that validates NAXS v0.1
+JSON documents from a file or a directory.
+"""
 
 from __future__ import annotations
 
@@ -11,7 +16,20 @@ from .validator import NaxsValidator
 
 
 def _validate_path(path: str, validator: NaxsValidator, strict: bool = False) -> dict:
-    """Validate a single file. Returns a result dict."""
+    """Validate a single JSON file and summarize the outcome.
+
+    Args:
+        path: Path of the file to validate.
+        validator: Validator instance to run against the file.
+        strict: When True, omit warnings from the returned summary
+            (warnings never affect validity).
+
+    Returns:
+        A dict with keys ``path``, ``valid``, ``errors``,
+        ``warnings``, ``error_count``, and ``warning_count``, where
+        ``errors`` and ``warnings`` are lists of
+        ``{path, message, rule}`` dicts.
+    """
     result = validator.validate_file(path)
     return {
         "path": path,
@@ -30,7 +48,17 @@ def _validate_path(path: str, validator: NaxsValidator, strict: bool = False) ->
 
 
 def _collect_json_files(path: str) -> list[str]:
-    """Collect all .json files from a path (file or directory)."""
+    """Collect the JSON files to validate from a path.
+
+    Args:
+        path: A file path (returned as a single-element list) or a
+            directory path (searched recursively for ``*.json``
+            files, sorted for deterministic order).
+
+    Returns:
+        The list of file paths; empty when the path is neither an
+        existing file nor a directory.
+    """
     p = Path(path)
     if p.is_file():
         return [str(p)]
@@ -40,9 +68,19 @@ def _collect_json_files(path: str) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the CLI.
+
+    Args:
+        argv: Argument list; defaults to ``sys.argv[1:]``.
+
+    Returns:
+        Process exit code: 0 when every validated document is valid,
+        1 when no JSON files were found or at least one document is
+        invalid.
+    """
     parser = argparse.ArgumentParser(
         prog="pynaxs",
-        description="Validate NAXS v1.0 architecture/block JSON documents.",
+        description="Validate NAXS v0.1 architecture/block JSON documents.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 

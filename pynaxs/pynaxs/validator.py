@@ -1,11 +1,27 @@
-"""NAXS v1.0 validator — core validation engine.
+"""Core validation engine for NAXS v0.1 documents.
 
-Implements all validation rules from the NAXS specification:
-  - §13.1 Structural Integrity
-  - §13.2 Consistency
-  - §13.3 Parameter Validity
-  - §13.4 Soft Validation (warnings)
-  - §25.11 Block Template validation
+A NAXS document is a JSON object describing a neural network
+architecture as a directed graph of typed, parameterized components,
+with optional block templates and repetition.
+
+Validation runs in six phases, collecting hard errors and soft
+warnings into a single result:
+
+0. JSON Schema validation against the bundled ``schema.json``.
+1. Structural integrity — required fields present, ``components`` a
+   non-empty array, unique component/connection IDs, and resolvable
+   ``inputs``/``outputs``/``from``/``to`` references.
+2. Consistency — ``inputs``/``outputs`` listings are bidirectional and
+   agree with the ``connections`` array.
+3. Parameter validity — parameter values are flat JSON scalars or
+   arrays of integers/strings; nulls and nested objects are rejected.
+4. Block templates — unique template/node IDs, resolvable
+   ``block_ref`` values and template edges, valid ``repeat``
+   directives, and resolvable ``$param`` / ``$expr`` references
+   without circular template nesting.
+5. Soft validation — warnings for conforming but suboptimal documents
+   (missing description or scope, custom operators with empty
+   params, non-standard parameter names).
 """
 
 from __future__ import annotations
@@ -23,16 +39,25 @@ from .registry import OPERATOR_REGISTRY, STANDARD_PARAMS
 
 # ─── Path to the bundled JSON Schema ──────────────────────────────────────────
 
-# Look for schema.json relative to the package, then in the repo root
+# Search order for schema.json: next to the package first, then in a
+# sibling naxs/v0.1 directory (source checkout or installed tree).
 _SCHEMA_CANDIDATES = [
-    Path(__file__).resolve().parent / "schema.json",          # bundled in package
-    Path(__file__).resolve().parent.parent / "naxs" / "v1.0" / "schema.json",  # repo root
-    Path(__file__).resolve().parent.parent.parent / "naxs" / "v1.0" / "schema.json",  # repo root (installed)
+    Path(__file__).resolve().parent / "schema.json",
+    Path(__file__).resolve().parent.parent / "naxs" / "v0.1" / "schema.json",
+    Path(__file__).resolve().parent.parent.parent / "naxs" / "v0.1" / "schema.json",
 ]
 
 
 def _load_schema() -> dict[str, Any]:
-    """Load the NAXS JSON Schema from the repository."""
+    """Load the NAXS v0.1 JSON Schema used for structural checks.
+
+    Returns:
+        The parsed JSON Schema as a dict.
+
+    Raises:
+        FileNotFoundError: If ``schema.json`` is not found in any of
+            the known search locations.
+    """
     for candidate in _SCHEMA_CANDIDATES:
         if candidate.exists():
             with open(candidate) as f:
@@ -48,16 +73,31 @@ def _load_schema() -> dict[str, Any]:
 
 @dataclass
 class ValidationError:
-    """A hard validation error (document is non-conforming)."""
+    """A hard validation error; the document does not conform.
+
+    Attributes:
+        path: Dot-path locating the offending value within the
+            document, rooted at ``$`` (e.g. ``$.components[0].id``).
+        message: Human-readable description of the problem.
+        rule: Identifier of the violated rule, as shown in validator
+            output.
+    """
 
     path: str
     message: str
-    rule: str  # e.g. "§13.1.4"
+    rule: str
 
 
 @dataclass
 class ValidationWarning:
-    """A soft validation warning (document is conforming but suboptimal)."""
+    """A soft warning; the document conforms but is suboptimal.
+
+    Attributes:
+        path: Dot-path locating the offending value within the
+            document, rooted at ``$``.
+        message: Human-readable description of the concern.
+        rule: Identifier of the rule that raised the warning.
+    """
 
     path: str
     message: str
@@ -66,23 +106,48 @@ class ValidationWarning:
 
 @dataclass
 class ValidationResult:
-    """Result of validating a NAXS document."""
+    """Outcome of validating a single NAXS document.
+
+    Attributes:
+        document_path: Path or label under which the document was
+            validated (may be a placeholder such as ``"<string>"``).
+        errors: Hard errors found during validation.
+        warnings: Soft warnings found during validation.
+    """
 
     document_path: str
     errors: list[ValidationError] = field(default_factory=list)
     warnings: list[ValidationWarning] = field(default_factory=list)
 
     def is_valid(self) -> bool:
-        """True if there are no hard errors."""
+        """Return True when there are no hard errors.
+
+        Warnings do not affect validity.
+        """
         return len(self.errors) == 0
 
     def add_error(self, path: str, message: str, rule: str) -> None:
+        """Record a hard error.
+
+        Args:
+            path: Dot-path locating the offending value.
+            message: Human-readable description of the problem.
+            rule: Identifier of the violated rule.
+        """
         self.errors.append(ValidationError(path=path, message=message, rule=rule))
 
     def add_warning(self, path: str, message: str, rule: str) -> None:
+        """Record a soft warning.
+
+        Args:
+            path: Dot-path locating the offending value.
+            message: Human-readable description of the concern.
+            rule: Identifier of the rule that raised the warning.
+        """
         self.warnings.append(ValidationWarning(path=path, message=message, rule=rule))
 
     def summary(self) -> str:
+        """Return a one-line verdict with error and warning counts."""
         if self.is_valid():
             return f"✅ VALID: {self.document_path} ({len(self.warnings)} warnings)"
         return f"❌ INVALID: {self.document_path} ({len(self.errors)} errors, {len(self.warnings)} warnings)"
@@ -95,9 +160,16 @@ _PARAM_REF_RE = re.compile(r"^\$\w+$")
 
 
 def _validate_expr(expr: str, declared_params: set[str]) -> tuple[bool, str]:
-    """Check that a $expr string is syntactically valid and references only declared params.
+    """Check that a ``$expr`` expression string is well-formed.
 
-    Returns (is_valid, error_message).
+    An expression is an arithmetic formula over bare parameter names
+    (no ``$`` prefix), numeric literals, the operators ``+ - * /``,
+    and parentheses. Every identifier must appear in
+    ``declared_params`` and parentheses must be balanced.
+
+    Returns:
+        A tuple ``(is_valid, error_message)``; ``error_message`` is
+        empty when the expression is valid.
     """
     try:
         tokens = _EXPR_TOKEN_RE.findall(expr)
@@ -137,7 +209,17 @@ def _validate_expr(expr: str, declared_params: set[str]) -> tuple[bool, str]:
 
 
 class NaxsValidator:
-    """Validates NAXS v1.0 documents against the specification."""
+    """Validates NAXS v0.1 documents.
+
+    Runs the six validation phases described in the module docstring
+    and collects all errors and warnings into a single
+    :class:`ValidationResult`.
+
+    Args:
+        schema: JSON Schema dict to validate against. When omitted,
+            the NAXS v0.1 schema is loaded from the known search
+            locations.
+    """
 
     def __init__(self, schema: Optional[dict] = None):
         self._schema = schema or _load_schema()
@@ -145,7 +227,15 @@ class NaxsValidator:
     # ── Public API ──────────────────────────────────────────────────────────
 
     def validate_file(self, path: str | Path) -> ValidationResult:
-        """Validate a NAXS document from a file path."""
+        """Validate a NAXS document read from a JSON file.
+
+        Args:
+            path: Path to a JSON file.
+
+        Returns:
+            The validation outcome. If the file cannot be parsed as
+            JSON, the result carries a single parse error.
+        """
         path = str(path)
         with open(path) as f:
             try:
@@ -157,7 +247,17 @@ class NaxsValidator:
         return self.validate_document(doc, path)
 
     def validate_str(self, json_str: str, source_name: str = "<string>") -> ValidationResult:
-        """Validate a NAXS document from a JSON string."""
+        """Validate a NAXS document given as a JSON string.
+
+        Args:
+            json_str: The JSON document text.
+            source_name: Label recorded on the result and used in
+                messages.
+
+        Returns:
+            The validation outcome. If the string cannot be parsed as
+            JSON, the result carries a single parse error.
+        """
         try:
             doc = json.loads(json_str)
         except json.JSONDecodeError as e:
@@ -167,7 +267,16 @@ class NaxsValidator:
         return self.validate_document(doc, source_name)
 
     def validate_document(self, doc: Any, source_name: str = "<document>") -> ValidationResult:
-        """Validate a parsed NAXS document (dict)."""
+        """Validate an already-parsed NAXS document.
+
+        Args:
+            doc: The parsed document; expected to be a dict.
+            source_name: Label recorded on the result and used in
+                messages.
+
+        Returns:
+            The full validation outcome across all phases.
+        """
         result = ValidationResult(document_path=source_name)
 
         if not isinstance(doc, dict):
@@ -197,7 +306,12 @@ class NaxsValidator:
     # ── Phase 0: JSON Schema ───────────────────────────────────────────────
 
     def _validate_json_schema(self, doc: dict, result: ValidationResult) -> None:
-        """Run the JSON Schema validator (structural type/shape checks)."""
+        """Phase 0: validate the document against the JSON Schema.
+
+        Reports at most the first schema violation as a hard error;
+        rules not expressible in the schema are checked by the later
+        phases.
+        """
         try:
             jsonschema.validate(doc, self._schema)
         except jsonschema.ValidationError as e:
@@ -211,6 +325,17 @@ class NaxsValidator:
     # ── Phase 1: Structural Integrity (§13.1) ──────────────────────────────
 
     def _validate_structural(self, doc: dict, result: ValidationResult) -> None:
+        """Phase 1: structural integrity checks.
+
+        Verifies that the required top-level fields (``spec_version``,
+        ``id``, ``name``, ``components``, ``connections``) are present
+        and non-null, that ``components`` is a non-empty array whose
+        entries carry all required fields, that component IDs are
+        unique, that every ``inputs``/``outputs`` entry references an
+        existing component, and that connections are objects with
+        unique IDs whose ``from``/``to`` endpoints resolve to existing
+        components.
+        """
         # §13.1.1: required top-level fields present and non-null
         required_top = ["spec_version", "id", "name", "components"]
         for field_name in required_top:
@@ -313,6 +438,14 @@ class NaxsValidator:
     # ── Phase 2: Consistency (§13.2) ────────────────────────────────────────
 
     def _validate_consistency(self, doc: dict, result: ValidationResult) -> None:
+        """Phase 2: graph consistency checks.
+
+        Verifies that inputs/outputs listings are bidirectional — when
+        component A lists B in its ``outputs``, B must list A in its
+        ``inputs`` — and that every connection's ``from``/``to`` pair
+        is mirrored in the corresponding components' ``outputs`` and
+        ``inputs``.
+        """
         components = doc.get("components", [])
         if not isinstance(components, list):
             return
@@ -383,6 +516,13 @@ class NaxsValidator:
     # ── Phase 3: Parameter Validity (§13.3) ─────────────────────────────────
 
     def _validate_params(self, doc: dict, result: ValidationResult) -> None:
+        """Phase 3: parameter validity checks.
+
+        Checks the ``params`` object of every component, and of every
+        node inside block templates (where ``$param`` references and
+        ``$expr`` objects are additionally allowed), against the flat
+        value rules enforced by :meth:`_check_param_value`.
+        """
         components = doc.get("components", [])
         if not isinstance(components, list):
             return
@@ -425,7 +565,22 @@ class NaxsValidator:
         result: ValidationResult,
         allow_param_ref: bool = False,
     ) -> None:
-        """Check a single parameter value against §13.3 rules."""
+        """Check a single parameter value against the flat-value rules.
+
+        Valid values are booleans, integers, floats, strings, and
+        arrays of integers or strings; nulls and nested objects are
+        rejected. When ``allow_param_ref`` is set (block template
+        context), string values of the form ``$name`` and objects of
+        the form ``{"$expr": "..."}`` are also accepted.
+
+        Args:
+            key: Name of the parameter being checked.
+            val: Parameter value to check.
+            path: Dot-path used to locate the value in messages.
+            result: Result that errors are recorded on.
+            allow_param_ref: Whether ``$name`` strings and ``$expr``
+                objects are permitted.
+        """
         # §13.3.15: MUST NOT be null
         if val is None:
             result.add_error(path, "Parameter value must not be null", "§13.3.15")
@@ -467,6 +622,18 @@ class NaxsValidator:
     # ── Phase 4: Block Template Validation (§25.11) ─────────────────────────
 
     def _validate_block_templates(self, doc: dict, result: ValidationResult) -> None:
+        """Phase 4: block template checks.
+
+        Verifies that template IDs are unique, that node IDs are
+        unique within each template, that template edges only
+        reference existing node IDs, and that ``$param`` references
+        and ``$expr`` expressions in node params resolve against the
+        template's declared parameters (plus the built-in ``$i``).
+        Also checks that component ``block_ref`` values point at
+        declared templates, validates ``repeat`` directives on both
+        components and template nodes, and rejects circular template
+        references.
+        """
         block_templates = doc.get("block_templates")
         if block_templates is None:
             block_templates = []
@@ -599,7 +766,15 @@ class NaxsValidator:
         self._check_circular_refs(templates, result)
 
     def _validate_repeat(self, repeat: dict, path: str, result: ValidationResult) -> None:
-        """Validate a repeat directive (§25.11.5-7)."""
+        """Validate a ``repeat`` directive.
+
+        ``count`` must be a positive integer or a ``$param``
+        reference; ``mode`` must be ``"sequential"``, ``"parallel"``,
+        or ``"stacked"`` (defaulting to ``"sequential"``); and every
+        entry in ``overrides`` must carry an ``index`` within
+        ``[0, count - 1]`` (index bounds are only enforced when
+        ``count`` is a literal integer).
+        """
         # §25.11.5: count is positive integer (or $-reference)
         count = repeat.get("count")
         if isinstance(count, int):
@@ -632,7 +807,12 @@ class NaxsValidator:
                         )
 
     def _check_circular_refs(self, templates: dict[str, dict], result: ValidationResult) -> None:
-        """Detect circular block template references (§25.11.8)."""
+        """Detect cycles in the block template reference graph.
+
+        Builds a graph mapping each template to the templates its
+        nodes reference via ``block_ref`` and reports the first cycle
+        found through depth-first search.
+        """
         # Build dependency graph: template -> set of templates it references
         deps: dict[str, set[str]] = {}
         for tid, bt in templates.items():
@@ -676,6 +856,15 @@ class NaxsValidator:
     # ── Phase 5: Soft Validation Warnings (§13.4) ────────────────────────────
 
     def _validate_soft(self, doc: dict, result: ValidationResult) -> None:
+        """Phase 5: soft validation warnings.
+
+        Emits warnings (never errors) for conforming but suboptimal
+        documents: a missing document ``description``, components of
+        type ``"custom"`` with empty ``params``, components without a
+        ``scope``, and parameter names outside the standard catalog
+        for the component's type (see
+        :data:`pynaxs.registry.STANDARD_PARAMS`).
+        """
         # §13.4: Documents without a description
         if not doc.get("description"):
             result.add_warning("$.description", "Document has no description", "§13.4")

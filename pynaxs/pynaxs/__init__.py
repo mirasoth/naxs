@@ -1,19 +1,29 @@
-"""pynaxs — NAXS v1.0 validator.
+"""pynaxs — validator for NAXS v0.1 architecture documents.
 
-Validates JSON documents against the Neural Architecture Exchange Specification.
+NAXS (Neural Architecture Exchange Specification) is a JSON format for
+describing neural network architectures as directed graphs of typed,
+parameterized components, with optional block templates and repetition.
 
-Covers:
-  - §13.1 Structural Integrity
-  - §13.2 Consistency
-  - §13.3 Parameter Validity
-  - §13.4 Soft Validation (warnings)
-  - §25.11 Block Template validation
+This package validates JSON documents against the NAXS v0.1 rules:
+
+* Structural integrity — required fields, non-empty component list,
+  unique component/connection IDs, and resolvable cross-references.
+* Consistency — inputs/outputs listings agree in both directions and
+  match the declared connections.
+* Parameter validity — parameter values must be flat JSON scalars or
+  arrays of integers/strings (no nulls or nested objects).
+* Soft validation — warnings for suboptimal but conforming documents,
+  such as missing descriptions or scopes, or parameter names outside
+  the standard catalog.
+* Block templates — unique template IDs, resolvable block references
+  and edges, valid repeat directives, and resolvable ``$param`` /
+  ``$expr`` references without circular template nesting.
 """
 
 from .validator import NaxsValidator, ValidationResult, ValidationError, ValidationWarning
 from .registry import OPERATOR_REGISTRY, STANDARD_PARAMS
 
-__version__ = "1.0.0"
+__version__ = "0.1.0"
 __all__ = [
     "NaxsValidator",
     "ValidationResult",

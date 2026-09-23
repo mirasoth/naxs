@@ -1,6 +1,6 @@
 # NAXS — Neural Architecture Exchange Specification
 
-**Version:** 1.0  
+**Version:** 0.1  
 **Status:** Draft for Public Review  
 **License:** CC-BY-4.0 / Apache-2.0 (dual)  
 **Website:** https://neuroarchitectures.github.io  
@@ -23,7 +23,7 @@ The goal is interoperability: any tool, vendor, research group, or automated age
 ├── specification.md              # Full specification (§1–§25 + appendices)
 ├── LICENSE                       # Apache-2.0
 ├── naxs/
-│   └── v1.0/
+│   └── v0.1/
 │       ├── schema.json           # Machine-readable JSON Schema (draft 2020-12)
 │       └── examples/
 │           ├── minimal_mlp.json            # Smallest valid document
@@ -56,7 +56,7 @@ A minimal NAXS document:
 
 ```json
 {
-  "spec_version": "1.0",
+  "spec_version": "0.1",
   "id": "minimal-mlp",
   "name": "Minimal MLP",
   "components": [
@@ -130,8 +130,8 @@ For structural validation only, the JSON Schema can be used directly:
 pip install jsonschema
 python -c "
 import json, jsonschema
-schema = json.load(open('naxs/v1.0/schema.json'))
-doc = json.load(open('naxs/v1.0/examples/minimal_mlp.json'))
+schema = json.load(open('naxs/v0.1/schema.json'))
+doc = json.load(open('naxs/v0.1/examples/minimal_mlp.json'))
 jsonschema.validate(doc, schema)
 print('Valid!')
 "

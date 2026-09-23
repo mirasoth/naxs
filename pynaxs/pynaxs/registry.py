@@ -1,12 +1,13 @@
-"""Standard operator type registry and parameter name catalog.
+"""Catalog of standard operator types and parameter names.
 
-Derived from NAXS spec Appendix A & B — based on statistical analysis
-of 288 architectures (9,735 components, 79 distinct operator types).
-These are *recommended* names, not required — non-matching names produce
-soft validation warnings, not errors.
+``OPERATOR_REGISTRY`` lists the operator type names the validator
+recognizes as standard, and ``STANDARD_PARAMS`` maps each type to the
+parameter names commonly used with it. Both catalogs are advisory:
+components with unknown types or non-standard parameter names remain
+valid and only trigger soft validation warnings, never errors.
 """
 
-# Standard operator types (79 observed in the Atlas knowledge base)
+# Standard operator type names, grouped by category.
 OPERATOR_REGISTRY = {
     # Core / IO
     "input", "output", "custom",
@@ -42,8 +43,10 @@ OPERATOR_REGISTRY = {
     "stochasticDepth", "emaWeights",
 }
 
-# Standard parameter names per operator type (for soft validation warnings).
-# Maps operator type -> set of known parameter names.
+# Standard parameter names per operator type, used for soft validation
+# warnings. An empty set means the type takes no standard parameters;
+# a None value (currently only "custom") means any parameter names are
+# accepted without warning.
 STANDARD_PARAMS: dict[str, set[str]] = {
     "input": {"shape"},
     "output": {"shape"},

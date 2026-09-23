@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pynaxs"
-version = "1.0.0"
+version = "0.1.0"
 description = "Python validator for the Neural Architecture Exchange Specification (NAXS)"
 readme = "README.md"
 license = {text = "Apache-2.0"}
