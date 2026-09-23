@@ -1,6 +1,9 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.build_meta"
+# Custom in-tree backend (build_backend.py) that vendors
+# ../naxs/v0.1/schema.json into the package at build time.
+build-backend = "build_backend"
+backend-path = ["."]
 
 [project]
 name = "pynaxs"
@@ -8,13 +11,44 @@ version = "0.1.0"
 description = "Python validator for the Neural Architecture Exchange Specification (NAXS)"
 readme = "README.md"
 license = {text = "Apache-2.0"}
+authors = [
+    {name = "jaminxmchen", email = "jaminxmchen@tencent.com"},
+]
+keywords = ["naxs", "neural-architecture", "validator", "json-schema", "deep-learning"]
 requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "jsonschema>=4.18",
 ]
+
+[project.urls]
+Homepage = "https://github.com/neuroarchitectures/naxs"
+Repository = "https://github.com/neuroarchitectures/naxs"
+Issues = "https://github.com/neuroarchitectures/naxs/issues"
+Specification = "https://github.com/neuroarchitectures/naxs/blob/main/specification.md"
 
 [project.scripts]
 pynaxs = "pynaxs.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
+include = ["pynaxs*"]
+
+[tool.setuptools.package-data]
+# schema.json is vendored into the package at build time by
+# build_backend.py from the sibling naxs/v0.1 specification directory.
+pynaxs = ["schema.json"]

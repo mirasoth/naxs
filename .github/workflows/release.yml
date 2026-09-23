@@ -1,0 +1,161 @@
+# Release workflow for the pynaxs PyPI package.
+#
+# Trigger: publish a GitHub Release whose tag matches "pynaxs-v*" (e.g.
+# "pynaxs-v0.1.0"). The workflow runs the test suite, verifies the
+# version constraints (release tag == package version, and package
+# major.minor == latest schema version under naxs/vX.Y, e.g. schema
+# v0.1 => pynaxs 0.1.x), builds sdist + wheel (the custom in-tree
+# backend vendors naxs/v0.1/schema.json into the package automatically
+# and enforces the same schema-version constraint at build time), and
+# publishes to PyPI via OIDC trusted publishing.
+#
+# One-time setup on the PyPI side (Settings → Publishing → Add trusted
+# publisher):
+#   PyPI project name : pynaxs
+#   Owner             : <your GitHub org/user>
+#   Repository        : <repo>
+#   Workflow name     : release.yml
+#   Environment       : pypi
+# and create a GitHub environment named "pypi" in this repo (optionally
+# with required reviewers for a manual approval gate).
+#
+# Alternative (legacy): replace the pypa/gh-action-pypi-publish step
+# with `password: ${{ secrets.PYPI_API_TOKEN }}` and delete the
+# `environment:` and id-token permissions.
+
+name: Release pynaxs
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PACKAGE_DIR: pynaxs
+
+jobs:
+  build:
+    name: Test & build
+    runs-on: ubuntu-latest
+    # Only act on pynaxs releases (this repo is a monorepo); allow
+    # manual dispatch for build-only dry runs.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.release.tag_name, 'pynaxs-v')
+    strategy:
+      fail-fast: false
+      matrix:
+        # Cover the supported Python range (requires-python >= 3.9).
+        python-version: ["3.9", "3.12"]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install build and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine pytest
+        working-directory: ${{ env.PACKAGE_DIR }}
+
+      - name: Run test suite
+        run: python -m pytest tests/ -q
+        working-directory: ${{ env.PACKAGE_DIR }}
+
+      - name: Verify version constraints (package ↔ schema ↔ tag)
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: |
+          set -euo pipefail
+          python - <<'EOF'
+          import os
+          import pathlib
+          import re
+          import sys
+
+          # Package version from pyproject.toml (regex, works on py3.9+).
+          text = pathlib.Path("pyproject.toml").read_text(encoding="utf-8")
+          m = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
+          if m is None:
+              sys.exit("No 'version' field found in pynaxs/pyproject.toml")
+          pkg = m.group(1)
+
+          # Latest schema version = highest naxs/vX.Y directory.
+          spec_root = pathlib.Path("../naxs")
+          dirs = [
+              p for p in spec_root.iterdir()
+              if p.is_dir() and re.fullmatch(r"v\d+\.\d+", p.name)
+          ]
+          if not dirs:
+              sys.exit(f"No schema version directories (naxs/vX.Y) under {spec_root}")
+          latest = max(dirs, key=lambda p: tuple(int(x) for x in p.name[1:].split(".")))
+          schema_version = latest.name[1:]
+
+          # Constraint: while the latest schema is v0.1, pynaxs must be 0.1.x.
+          pkg_mm = ".".join(pkg.split(".")[:2])
+          if pkg_mm != schema_version:
+              sys.exit(
+                  f"Version constraint violated: pynaxs {pkg} does not match "
+                  f"schema {latest.name}; pynaxs must be {schema_version}.x "
+                  f"while the vendored schema is {latest.name}."
+              )
+
+          # On releases, the tag must equal pynaxs-v<package version>.
+          tag = os.environ.get("RELEASE_TAG", "")
+          if tag and tag != f"pynaxs-v{pkg}":
+              sys.exit(
+                  f"Release tag '{tag}' does not match pynaxs version '{pkg}' "
+                  f"(expected 'pynaxs-v{pkg}')."
+              )
+
+          print(f"OK: pynaxs {pkg} matches schema {latest.name}")
+          EOF
+
+      - name: Build sdist and wheel
+        if: matrix.python-version == '3.12'
+        run: python -m build
+        working-directory: ${{ env.PACKAGE_DIR }}
+
+      - name: Check distribution metadata
+        if: matrix.python-version == '3.12'
+        run: python -m twine check dist/*
+        working-directory: ${{ env.PACKAGE_DIR }}
+
+      - name: Upload distribution artifacts
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: ${{ env.PACKAGE_DIR }}/dist/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    # Manual dispatch only builds and validates; publishing happens on
+    # published releases.
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/pynaxs/
+    permissions:
+      # Required for PyPI OIDC trusted publishing.
+      id-token: write
+    steps:
+      - name: Download distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

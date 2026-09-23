@@ -884,6 +884,8 @@ class NaxsValidator:
         # §13.4: Inconsistent scope usage — only warn about components
         # missing a scope when at least one component in the document
         # has one. Uniformly unscoped documents are valid and silent.
+        # ``input``/``output`` components are document boundaries and
+        # are exempt.
         any_scoped = any(
             isinstance(comp, dict) and comp.get("scope")
             for comp in components
@@ -900,8 +902,13 @@ class NaxsValidator:
             if comp_type == "custom" and (not params or len(params) == 0):
                 result.add_warning(f"{cpath}.params", "Custom operator with empty params", "§13.4")
 
-            # §13.4: Components without a scope (inconsistent usage only)
-            if any_scoped and not comp.get("scope"):
+            # §13.4: Components without a scope (inconsistent usage
+            # only; input/output boundary components are exempt)
+            if (
+                any_scoped
+                and not comp.get("scope")
+                and comp_type not in ("input", "output")
+            ):
                 result.add_warning(f"{cpath}.scope", "Component has no scope (other components in this document are scoped)", "§13.4")
 
             # §13.4: Parameter names not in the standard registry

@@ -1,0 +1,12 @@
+# pynaxs is intentionally excluded from the wheel (tests are not part of
+# the distributed package); schema.json is vendored at build time from
+# ../naxs/v0.1/ by build_backend.py and must ship in the sdist so that
+# pip can build a wheel from the sdist without the specification tree.
+include pynaxs/schema.json
+# the custom build backend must ship in the sdist, otherwise the
+# wheel cannot be built from the sdist tarball.
+include build_backend.py
+# ship the test suite in the sdist (tests is intentionally excluded
+# from the wheel itself via packages.find include)
+graft tests
+global-exclude __pycache__ *.pyc

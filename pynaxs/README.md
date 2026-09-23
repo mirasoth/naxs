@@ -1,12 +1,17 @@
 # pynaxs — NAXS Validator
 
-Python validator for the **Neural Architecture Exchange Specification (NAXS)** v1.0.
+Python validator for the **Neural Architecture Exchange Specification (NAXS)** v0.1.
 
 ## Install
 
 ```bash
-cd /Users/xiaming/Workspace/naxs/pynaxs
-pip install -e .
+pip install pynaxs
+```
+
+Or from source (this repository is a monorepo):
+
+```bash
+pip install git+https://github.com/neuroarchitectures/naxs#subdirectory=pynaxs
 ```
 
 ## CLI Usage

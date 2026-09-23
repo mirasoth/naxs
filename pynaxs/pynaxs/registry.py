@@ -68,7 +68,7 @@ STANDARD_PARAMS: dict[str, set[str]] = {
     "moeLayer": {"embedDim", "numExperts", "expertDim", "topK"},
     "sharedExpertMoE": {"embedDim", "numExperts", "expertDim", "topK", "numSharedExperts"},
     "seBlock": {"channels", "reduction"},
-    "patchEmbed": {"imgSize", "patchSize", "embedDim", "inChans"},
+    "patchEmbed": {"imgSize", "patchSize", "embedDim", "inChans", "stride"},
     "add": set(),
     "concatenate": {"dim", "axis", "numInputs"},
     "transformerBlock": {"embedDim", "numHeads", "hiddenDim", "ffDim"},

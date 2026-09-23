@@ -371,8 +371,9 @@ The following types are recognized in NAXS 0.1. Types not in this list are treat
 |------|-------------|----------------|
 | `moeLayer` | Mixture of experts layer | `embedDim`, `numExperts`, `expertDim`, `topK` |
 | `sharedExpertMoE` | MoE with shared experts | `embedDim`, `numExperts`, `expertDim`, `topK`, `numSharedExperts` |
-| `patchEmbed` | Patch embedding (ViT) | `imgSize`, `patchSize`, `embedDim`, `inChans` |
+| `patchEmbed` | Patch embedding (ViT) | `imgSize`, `patchSize`, `embedDim`, `inChans`, `stride` |
 | `seBlock` | Squeeze-and-excitation block | `channels`, `reduction` |
+| `positionalEncoding` | Positional encoding (sinusoidal, learned, ALiBi) | `embedDim`, `maxSeqLen`, `embeddingDim` |
 | `gcn_conv` | Graph convolution layer | — |
 | `rope` | Rotary position embedding | — |
 
@@ -619,7 +620,7 @@ A conforming NAXS document MUST satisfy:
 The following are not errors but SHOULD be flagged:
 
 - Components with `type: "custom"` and empty `params`.
-- Components without a `scope` **when scope usage is inconsistent within the document** — i.e. some components carry a `scope` while others do not. A document that omits `scope` everywhere is consistent (scope is optional metadata, [§12](#12-scope-notation)) and produces no warning.
+- Components without a `scope` **when scope usage is inconsistent within the document** — i.e. some components carry a `scope` while others do not. A document that omits `scope` everywhere is consistent (scope is optional metadata, [§12](#12-scope-notation)) and produces no warning. Components of type `input`/`output` are document boundaries and are exempt from this warning.
 - Parameter names not in the standard registry for the given `type`.
 - Documents without a `description`.
 
@@ -1184,7 +1185,7 @@ Connection fields (`id`, `from`, `to`, `fromPort`, `toPort`) are unchanged.
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 0.1.1 | 2026-09-23 | Evidence-based registry update from full-atlas validation (288 architectures): `embedDim`/`hiddenDim` added as standard params for `swiglu`, `geglu`, `feedForward`, `moeLayer`, `sharedExpertMoE`, `mla` (+`numHeads`), `positionalEncoding`; `dim`/`axis`/`numInputs` added for `concatenate` (§7.1, Appendix A). §13.4 scope warning narrowed to inconsistent scope usage within a document. |
+| 0.1.1 | 2026-09-23 | Evidence-based registry update from full-atlas validation (288 architectures): `embedDim`/`hiddenDim` added as standard params for `swiglu`, `geglu`, `feedForward`, `moeLayer`, `sharedExpertMoE`, `mla` (+`numHeads`), `positionalEncoding`; `dim`/`axis`/`numInputs` added for `concatenate`; `stride` added for `patchEmbed` (§7.1, Appendix A). §13.4 scope warning narrowed to inconsistent scope usage within a document, with `input`/`output` boundary components exempt. |
 | 0.1 | 2026-09-23 | Initial public draft. Includes block templates ([§25](#25-block-templates-and-repetition)): reusable subgraph definitions, `block_ref` components, `repeat` directives for layer/block repetition, parameter binding, and scope index substitution. |
 
 ---
@@ -1791,6 +1792,7 @@ The following parameter names appear across the 288 architectures in the Atlas k
 | `patchSize` | integer | `patchEmbed` | `32` |
 | `embedDim` | integer | `patchEmbed` | `768` |
 | `inChans` | integer | `patchEmbed` | `3` |
+| `stride` | integer | `patchEmbed` | `32` |
 
 ### Squeeze-Excitation Parameters
 
