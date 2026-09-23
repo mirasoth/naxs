@@ -1925,8 +1925,8 @@ To ensure round-trip fidelity (read → write → read produces identical semant
 
 ## License
 
-This specification document — `specification.md`, including the JSON examples embedded within it — is licensed under the **Creative Commons Attribution 4.0 International Public License (CC-BY-4.0)**. The full legal code is available as [`LICENSE-CC-BY-4.0.md`](LICENSE-CC-BY-4.0.md) in the repository root.
+This specification document — `docs/specification.md`, including the JSON examples embedded within it — is licensed under the **Creative Commons Attribution 4.0 International Public License (CC-BY-4.0)**. The full legal code is available as [`LICENSE-CC-BY-4.0.md`](../LICENSE-CC-BY-4.0.md) in the repository root.
 
-All other artifacts in the repository — the machine-readable JSON Schema (`naxs/v0.1/schema.json`), the example documents (`naxs/v0.1/examples/`), and the `pynaxs` reference validator — are licensed under the **Apache License 2.0** (see [`LICENSE`](LICENSE)).
+All other artifacts in the repository — the machine-readable JSON Schema (`naxs/v0.1/schema.json`), the example documents (`naxs/v0.1/examples/`), and the `pynaxs` reference validator — are licensed under the **Apache License 2.0** (see [`LICENSE`](../LICENSE)).
 
 Implementations may choose either license.

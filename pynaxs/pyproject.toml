@@ -39,7 +39,7 @@ dependencies = [
 Homepage = "https://github.com/neuroarchitectures/naxs"
 Repository = "https://github.com/neuroarchitectures/naxs"
 Issues = "https://github.com/neuroarchitectures/naxs/issues"
-Specification = "https://github.com/neuroarchitectures/naxs/blob/main/specification.md"
+Specification = "https://github.com/neuroarchitectures/naxs/blob/main/docs/specification.md"
 
 [project.scripts]
 pynaxs = "pynaxs.cli:main"

@@ -2,7 +2,7 @@
 
 This file contains the full legal code of the **Creative Commons Attribution 4.0 International Public License (CC-BY-4.0)**.
 
-Within this repository, it applies to the **documentation**: `specification.md` — the specification text, including the JSON examples embedded within it.
+Within this repository, it applies to the **documentation**: `docs/specification.md` — the specification text, including the JSON examples embedded within it.
 
 Code in this repository — `naxs/v0.1/` (JSON Schema + example documents) and `pynaxs/` (reference validator) — is licensed under the **Apache License 2.0**; see the root `LICENSE` file. See individual directories for details.
 

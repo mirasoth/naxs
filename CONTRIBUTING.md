@@ -12,14 +12,14 @@ Thank you for your interest in improving the Neural Architecture Exchange Specif
 
 ## Getting Started
 
-1. Read the [specification](specification.md) and the [documentation site](https://neuroarchitectures.github.io).
+1. Read the [specification](docs/specification.md) and the [documentation site](https://neuroarchitectures.github.io).
 2. Search [existing issues](https://github.com/neuroarchitectures/naxs/issues) to avoid duplicates.
 3. Open a new issue using one of the issue templates (spec feedback or operator registration).
 
 ## Proposing Changes to the Specification
 
 1. Fork the repository and create a branch from `main`.
-2. Make your change to `specification.md` (and `naxs/v0.1/schema.json` if structural).
+2. Make your change to `docs/specification.md` (and `naxs/v0.1/schema.json` if structural).
 3. If your change affects validation behavior, update `pynaxs` and its tests accordingly.
 4. Ensure the test suite passes:
 
@@ -46,9 +46,9 @@ The operator type registry (§7 of the specification) grows through community pr
 
 ## License
 
-Code in this repository is licensed under **Apache-2.0**. Documentation — the specification text in `specification.md` — is licensed under **CC-BY-4.0**. See individual directories for details ([root `LICENSE`](LICENSE), [`LICENSE-CC-BY-4.0.md`](LICENSE-CC-BY-4.0.md), [`naxs/v0.1/LICENSE.md`](naxs/v0.1/LICENSE.md), [`pynaxs/LICENSE.md`](pynaxs/LICENSE.md)).
+Code in this repository is licensed under **Apache-2.0**. Documentation — the specification text in `docs/specification.md` — is licensed under **CC-BY-4.0**. See individual directories for details ([root `LICENSE`](LICENSE), [`LICENSE-CC-BY-4.0.md`](LICENSE-CC-BY-4.0.md), [`naxs/v0.1/LICENSE.md`](naxs/v0.1/LICENSE.md), [`pynaxs/LICENSE.md`](pynaxs/LICENSE.md)).
 
 By contributing, you agree that:
 
-- contributions to `specification.md` (specification text) are licensed under **CC-BY-4.0**
+- contributions to `docs/specification.md` (specification text) are licensed under **CC-BY-4.0**
 - contributions to the JSON Schema, example documents, `pynaxs`, or any other code are licensed under **Apache-2.0**

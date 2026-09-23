@@ -20,7 +20,8 @@ The goal is interoperability: any tool, vendor, research group, or automated age
 
 ```
 .
-├── specification.md              # Full specification (§1–§25 + appendices)
+├── docs/
+│   └── specification.md          # Full specification (§1–§25 + appendices)
 ├── LICENSE                       # Apache-2.0
 ├── naxs/
 │   └── v0.1/
@@ -139,7 +140,7 @@ print('Valid!')
 
 ## Specification
 
-The full specification is in [`specification.md`](specification.md). Key sections:
+The full specification is in [`docs/specification.md`](docs/specification.md). Key sections:
 
 | Section | Topic |
 |---------|-------|
@@ -155,11 +156,11 @@ The full specification is in [`specification.md`](specification.md). Key section
 
 ## License
 
-Code in this repository is licensed under [Apache-2.0](LICENSE). Documentation — the specification text in `specification.md`, including the JSON examples embedded within it — is licensed under [CC-BY-4.0](LICENSE-CC-BY-4.0.md). See individual directories for details:
+Code in this repository is licensed under [Apache-2.0](LICENSE). Documentation — the specification text in `docs/specification.md`, including the JSON examples embedded within it — is licensed under [CC-BY-4.0](LICENSE-CC-BY-4.0.md). See individual directories for details:
 
 | Path | Content | License |
 |------|---------|---------|
-| `specification.md` | Specification text (including embedded JSON examples) | CC-BY-4.0 |
+| `docs/specification.md` | Specification text (including embedded JSON examples) | CC-BY-4.0 |
 | `naxs/v0.1/` | JSON Schema + example documents | Apache-2.0 |
 | `pynaxs/` | Reference validator | Apache-2.0 |
 | `assets/` | Brand assets | Apache-2.0 |
