@@ -1,0 +1,222 @@
+{
+  "$schema": "https://raw.githubusercontent.com/mirasoth/naxs/main/naxs/v1.0/schema.json",
+  "spec_version": "1.0",
+  "id": "llama-style-repetition",
+  "name": "Llama-Style (Nested Blocks + Expr Params)",
+  "description": "Demonstrates nested block templates, expression-based parameter derivation ($expr), and per-instance overrides. A transformer decoder with RMSNorm, GQA, SwiGLU FFN, and RoPE.",
+  "category": "NLP",
+  "block_templates": [
+    {
+      "id": "rmsnorm_attn",
+      "description": "RMSNorm + Grouped-Query Attention sub-block",
+      "params": {
+        "hiddenDim": { "type": "integer" },
+        "numHeads": { "type": "integer" },
+        "numKVHeads": { "type": "integer" }
+      },
+      "nodes": [
+        {
+          "id": "norm",
+          "type": "rmsNorm",
+          "name": "AttnNorm",
+          "params": { "normalizedShape": "$hiddenDim" }
+        },
+        {
+          "id": "attn",
+          "type": "groupedQueryAttention",
+          "name": "GQA",
+          "params": {
+            "embedDim": "$hiddenDim",
+            "numHeads": "$numHeads",
+            "numKVHeads": "$numKVHeads",
+            "headDim": { "$expr": "hiddenDim / numHeads" }
+          }
+        },
+        {
+          "id": "add",
+          "type": "add",
+          "name": "AttnResidual",
+          "params": {}
+        }
+      ],
+      "edges": [
+        { "from": "norm", "to": "attn" },
+        { "from": "attn", "to": "add" }
+      ],
+      "interface": {
+        "inputs": [{ "name": "x" }],
+        "outputs": [{ "name": "y", "source_node": "add" }]
+      }
+    },
+    {
+      "id": "rmsnorm_ffn",
+      "description": "RMSNorm + SwiGLU FFN sub-block",
+      "params": {
+        "hiddenDim": { "type": "integer" },
+        "intermediateSize": { "type": "integer" }
+      },
+      "nodes": [
+        {
+          "id": "norm",
+          "type": "rmsNorm",
+          "name": "FFNNorm",
+          "params": { "normalizedShape": "$hiddenDim" }
+        },
+        {
+          "id": "ffn",
+          "type": "swiglu",
+          "name": "SwiGLU",
+          "params": {
+            "dim": "$hiddenDim",
+            "intermediateSize": "$intermediateSize"
+          }
+        },
+        {
+          "id": "add",
+          "type": "add",
+          "name": "FFNResidual",
+          "params": {}
+        }
+      ],
+      "edges": [
+        { "from": "norm", "to": "ffn" },
+        { "from": "ffn", "to": "add" }
+      ],
+      "interface": {
+        "inputs": [{ "name": "x" }],
+        "outputs": [{ "name": "y", "source_node": "add" }]
+      }
+    },
+    {
+      "id": "decoder_layer",
+      "description": "Full transformer decoder layer: attention sub-block + FFN sub-block (nested block templates)",
+      "params": {
+        "hiddenDim": { "type": "integer" },
+        "numHeads": { "type": "integer" },
+        "numKVHeads": { "type": "integer" },
+        "intermediateSize": { "type": "integer" }
+      },
+      "nodes": [
+        {
+          "id": "attn_block",
+          "type": "block",
+          "block_ref": "rmsnorm_attn",
+          "params": {
+            "hiddenDim": "$hiddenDim",
+            "numHeads": "$numHeads",
+            "numKVHeads": "$numKVHeads"
+          }
+        },
+        {
+          "id": "ffn_block",
+          "type": "block",
+          "block_ref": "rmsnorm_ffn",
+          "params": {
+            "hiddenDim": "$hiddenDim",
+            "intermediateSize": "$intermediateSize"
+          }
+        }
+      ],
+      "edges": [
+        { "from": "attn_block", "to": "ffn_block" }
+      ],
+      "interface": {
+        "inputs": [{ "name": "x" }],
+        "outputs": [{ "name": "y", "source_node": "ffn_block" }]
+      }
+    }
+  ],
+  "components": [
+    {
+      "id": "input",
+      "type": "input",
+      "name": "Input",
+      "params": { "shape": ["batch", "seq_len", 4096] },
+      "inputs": [],
+      "outputs": ["embed"]
+    },
+    {
+      "id": "embed",
+      "type": "embedding",
+      "name": "TokenEmbedding",
+      "params": { "vocabSize": 128256, "embeddingDim": 4096 },
+      "inputs": ["input"],
+      "outputs": ["layers"],
+      "scope": "embeddings"
+    },
+    {
+      "id": "layers",
+      "type": "block",
+      "name": "DecoderLayers",
+      "block_ref": "decoder_layer",
+      "params": {
+        "hiddenDim": 4096,
+        "numHeads": 32,
+        "numKVHeads": 8,
+        "intermediateSize": 14336
+      },
+      "repeat": {
+        "count": 32,
+        "mode": "sequential",
+        "overrides": [
+          { "index": 0, "params": { "numHeads": 32 } }
+        ]
+      },
+      "inputs": ["embed"],
+      "outputs": ["norm_f"],
+      "scope": "decoder.layer.$i"
+    },
+    {
+      "id": "norm_f",
+      "type": "rmsNorm",
+      "name": "FinalNorm",
+      "params": { "normalizedShape": 4096 },
+      "inputs": ["layers"],
+      "outputs": ["lm_head"],
+      "scope": "decoder"
+    },
+    {
+      "id": "lm_head",
+      "type": "linear",
+      "name": "LMHead",
+      "params": { "inFeatures": 4096, "outFeatures": 128256, "bias": false },
+      "inputs": ["norm_f"],
+      "outputs": ["output"],
+      "scope": "head"
+    },
+    {
+      "id": "output",
+      "type": "output",
+      "name": "Output",
+      "params": {},
+      "inputs": ["lm_head"],
+      "outputs": []
+    }
+  ],
+  "connections": [
+    { "id": "c1", "from": "input", "to": "embed", "fromPort": "bottom", "toPort": "top" },
+    { "id": "c2", "from": "embed", "to": "layers", "fromPort": "bottom", "toPort": "top" },
+    { "id": "c3", "from": "layers", "to": "norm_f", "fromPort": "bottom", "toPort": "top" },
+    { "id": "c4", "from": "norm_f", "to": "lm_head", "fromPort": "bottom", "toPort": "top" },
+    { "id": "c5", "from": "lm_head", "to": "output", "fromPort": "bottom", "toPort": "top" }
+  ],
+  "metadata": {
+    "framework": "pytorch",
+    "features": [
+      "nested_block_templates",
+      "expression_params",
+      "per_instance_overrides",
+      "symbolic_dimensions"
+    ],
+    "expanded_component_count": 197,
+    "compressed_component_count": 6,
+    "block_template_hierarchy": {
+      "decoder_layer": ["rmsnorm_attn", "rmsnorm_ffn"]
+    }
+  },
+  "provenance": {
+    "source": "derived from atlas/architectures/llama3-8b/model.json",
+    "original_format": "atlas-model-json",
+    "imported_by": "manual"
+  }
+}

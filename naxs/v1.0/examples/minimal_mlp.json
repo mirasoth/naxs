@@ -1,0 +1,33 @@
+{
+  "spec_version": "1.0",
+  "id": "minimal-mlp",
+  "name": "Minimal MLP",
+  "description": "The smallest valid NAXS document: a single linear layer.",
+  "components": [
+    {
+      "id": "n1",
+      "type": "input",
+      "name": "x",
+      "params": { "shape": [10] },
+      "inputs": [],
+      "outputs": ["n2"]
+    },
+    {
+      "id": "n2",
+      "type": "linear",
+      "name": "fc1",
+      "params": { "inFeatures": 10, "outFeatures": 5 },
+      "inputs": ["n1"],
+      "outputs": []
+    }
+  ],
+  "connections": [
+    {
+      "id": "c1",
+      "from": "n1",
+      "to": "n2",
+      "fromPort": "bottom",
+      "toPort": "top"
+    }
+  ]
+}

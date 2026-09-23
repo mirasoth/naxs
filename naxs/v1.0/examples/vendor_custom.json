@@ -1,0 +1,57 @@
+{
+  "spec_version": "1.0",
+  "id": "vendor-custom-arch",
+  "name": "Vendor Custom Architecture",
+  "description": "Demonstrates custom operator types, vendor metadata, and provenance.",
+  "category": "Custom",
+  "components": [
+    {
+      "id": "n1",
+      "type": "input",
+      "name": "Sensor Data",
+      "params": { "shape": ["batch", 128, 6] },
+      "inputs": [],
+      "outputs": ["n2"]
+    },
+    {
+      "id": "n2",
+      "type": "custom",
+      "name": "Acme Temporal Feature Extractor",
+      "params": {
+        "windowSize": 16,
+        "stride": 2,
+        "featureDim": 256
+      },
+      "inputs": ["n1"],
+      "outputs": ["n3"],
+      "scope": "feature_extraction",
+      "notes": "Vendor-specific temporal feature extractor with learned windowed attention."
+    },
+    {
+      "id": "n3",
+      "type": "linear",
+      "name": "classifier",
+      "params": { "inFeatures": 256, "outFeatures": 10, "bias": true },
+      "inputs": ["n2"],
+      "outputs": []
+    }
+  ],
+  "connections": [
+    { "id": "c1", "from": "n1", "to": "n2", "fromPort": "bottom", "toPort": "top" },
+    { "id": "c2", "from": "n2", "to": "n3", "fromPort": "bottom", "toPort": "top" }
+  ],
+  "metadata": {
+    "framework": "custom",
+    "framework_version": "1.0.0",
+    "vendor": "Acme Corp",
+    "license": "proprietary",
+    "tags": ["temporal", "sensor", "custom-op"],
+    "vendor:checkpoint": "s3://acme-models/temporal-v2.pt"
+  },
+  "provenance": {
+    "source": "internal://acme/temporal-arch-v2.json",
+    "imported_at": "2026-09-23T12:00:00Z",
+    "imported_by": "acme-importer v1.2.0",
+    "original_format": "manual"
+  }
+}

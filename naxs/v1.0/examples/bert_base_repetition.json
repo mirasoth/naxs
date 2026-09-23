@@ -1,0 +1,166 @@
+{
+  "$schema": "https://raw.githubusercontent.com/mirasoth/naxs/main/naxs/v1.0/schema.json",
+  "spec_version": "1.0",
+  "id": "bert-base-repetition",
+  "name": "BERT-Base (with Block Templates)",
+  "description": "BERT-Base represented with a single block template and a repeat directive. 5 components expand to the same 51-component graph as the NAXS 1.0 BERT-Base example.",
+  "category": "NLP",
+  "block_templates": [
+    {
+      "id": "transformer_encoder_layer",
+      "description": "Standard transformer encoder layer: attention → residual add → LayerNorm → FFN → residual add → LayerNorm",
+      "params": {
+        "hiddenDim": { "type": "integer", "description": "Hidden dimension size" },
+        "numHeads": { "type": "integer", "description": "Number of attention heads" },
+        "ffDim": { "type": "integer", "description": "Feed-forward intermediate dimension" }
+      },
+      "nodes": [
+        {
+          "id": "attn",
+          "type": "multiHeadAttention",
+          "name": "Attention",
+          "params": {
+            "numHeads": "$numHeads",
+            "hiddenDim": "$hiddenDim"
+          }
+        },
+        {
+          "id": "add1",
+          "type": "add",
+          "name": "ResidualAdd1",
+          "params": {}
+        },
+        {
+          "id": "ln1",
+          "type": "layerNorm",
+          "name": "LayerNorm1",
+          "params": {
+            "normalizedShape": "$hiddenDim"
+          }
+        },
+        {
+          "id": "ffn",
+          "type": "feedForward",
+          "name": "FFN",
+          "params": {
+            "hiddenDim": "$hiddenDim",
+            "ffDim": "$ffDim"
+          }
+        },
+        {
+          "id": "add2",
+          "type": "add",
+          "name": "ResidualAdd2",
+          "params": {}
+        },
+        {
+          "id": "ln2",
+          "type": "layerNorm",
+          "name": "LayerNorm2",
+          "params": {
+            "normalizedShape": "$hiddenDim"
+          }
+        }
+      ],
+      "edges": [
+        { "from": "attn", "to": "add1" },
+        { "from": "add1", "to": "ln1" },
+        { "from": "ln1", "to": "ffn" },
+        { "from": "ffn", "to": "add2" },
+        { "from": "add2", "to": "ln2" }
+      ],
+      "interface": {
+        "inputs": [
+          { "name": "x", "description": "Input tensor [batch, seq, hiddenDim]" }
+        ],
+        "outputs": [
+          { "name": "y", "source_node": "ln2", "description": "Output tensor [batch, seq, hiddenDim]" }
+        ]
+      }
+    }
+  ],
+  "components": [
+    {
+      "id": "input",
+      "type": "input",
+      "name": "Input",
+      "params": { "shape": [1, 512, 768] },
+      "inputs": [],
+      "outputs": ["embed"],
+      "inputShape": [1, 512, 768]
+    },
+    {
+      "id": "embed",
+      "type": "embedding",
+      "name": "Embedding",
+      "params": {
+        "vocabSize": 30522,
+        "embeddingDim": 768,
+        "maxSeqLen": 512
+      },
+      "inputs": ["input"],
+      "outputs": ["layers"],
+      "scope": "embeddings"
+    },
+    {
+      "id": "layers",
+      "type": "block",
+      "name": "TransformerLayers",
+      "block_ref": "transformer_encoder_layer",
+      "params": {
+        "hiddenDim": 768,
+        "numHeads": 12,
+        "ffDim": 3072
+      },
+      "repeat": {
+        "count": 12,
+        "mode": "sequential"
+      },
+      "inputs": ["embed"],
+      "outputs": ["ln_f"],
+      "scope": "encoder.layer.$i"
+    },
+    {
+      "id": "ln_f",
+      "type": "layerNorm",
+      "name": "FinalLayerNorm",
+      "params": { "normalizedShape": 768 },
+      "inputs": ["layers"],
+      "outputs": ["output"],
+      "scope": "encoder"
+    },
+    {
+      "id": "output",
+      "type": "output",
+      "name": "Output",
+      "params": {},
+      "inputs": ["ln_f"],
+      "outputs": []
+    }
+  ],
+  "connections": [
+    { "id": "c1", "from": "input", "to": "embed", "fromPort": "bottom", "toPort": "top" },
+    { "id": "c2", "from": "embed", "to": "layers", "fromPort": "bottom", "toPort": "top" },
+    { "id": "c3", "from": "layers", "to": "ln_f", "fromPort": "bottom", "toPort": "top" },
+    { "id": "c4", "from": "ln_f", "to": "output", "fromPort": "bottom", "toPort": "top" }
+  ],
+  "metadata": {
+    "framework": "pytorch",
+    "paper": "https://arxiv.org/abs/1810.04805",
+    "checkpoint": "https://huggingface.co/bert-base-uncased",
+    "license": "apache-2.0",
+    "expanded_component_count": 51,
+    "compressed_component_count": 5
+  },
+  "provenance": {
+    "source": "atlas/architectures/bert-base/model.json",
+    "original_format": "atlas-model-json",
+    "imported_by": "manual",
+    "transformations": [
+      {
+        "operation": "extract_block_template",
+        "description": "Extracted transformer_encoder_layer template from 12 repeated layers"
+      }
+    ]
+  }
+}

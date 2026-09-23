@@ -1,0 +1,41 @@
+{
+  "spec_version": "1.0",
+  "id": "symbolic-shape-example",
+  "name": "Symbolic Shape Example",
+  "description": "Demonstrates symbolic (dynamic) dimensions in tensor shapes.",
+  "components": [
+    {
+      "id": "n1",
+      "type": "input",
+      "name": "Variable-Length Input",
+      "params": { "shape": ["batch", "seq_len", 768] },
+      "inputs": [],
+      "outputs": ["n2"],
+      "inputShape": ["batch", "seq_len", 768]
+    },
+    {
+      "id": "n2",
+      "type": "multiHeadAttention",
+      "name": "Self-Attention",
+      "params": {
+        "numHeads": 12,
+        "hiddenDim": 768
+      },
+      "inputs": ["n1"],
+      "outputs": ["n3"],
+      "scope": "layer.0.attention"
+    },
+    {
+      "id": "n3",
+      "type": "output",
+      "name": "Output",
+      "params": {},
+      "inputs": ["n2"],
+      "outputs": []
+    }
+  ],
+  "connections": [
+    { "id": "c1", "from": "n1", "to": "n2" },
+    { "id": "c2", "from": "n2", "to": "n3" }
+  ]
+}
