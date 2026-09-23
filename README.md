@@ -30,6 +30,13 @@ The goal is interoperability: any tool, vendor, research group, or automated age
 │           ├── bert_base_repetition.json  # 12-layer transformer via block templates
 │           ├── resnet_repetition.json     # 4-stage ResNet via repeat directives
 │           └── nested_blocks_llama.json  # Nested block templates + $expr params
+├── pynaxs/                       # Python validator (pip install -e pynaxs/)
+│   ├── pyproject.toml
+│   ├── pynaxs/
+│   │   ├── validator.py          # Core validation engine (§13 + §25)
+│   │   ├── registry.py           # Standard operator/parameter registry
+│   │   └── cli.py                # CLI entry point
+│   └── tests/                    # 33 tests covering all validation rules
 └── README.md                     # This file
 ```
 
@@ -76,7 +83,45 @@ A minimal NAXS document:
 
 ## Validation
 
-Validate any NAXS document against the JSON Schema:
+### pynaxs — Python Validator
+
+`pynaxs` is the reference validator implementation. It checks all rules from §13 (structural integrity, consistency, parameter validity, soft validation) and §25.11 (block template validation).
+
+```bash
+# Install
+cd pynaxs && pip install -e .
+
+# Validate a single file
+pynaxs validate path/to/architecture.json
+
+# Validate all JSON files in a directory
+pynaxs validate path/to/architectures/
+
+# Suppress warnings (--strict = only show errors)
+pynaxs validate --strict path/to/architecture.json
+
+# JSON output for CI integration
+pynaxs validate --format json path/to/architecture.json
+```
+
+Python API:
+
+```python
+from pynaxs import NaxsValidator
+
+validator = NaxsValidator()
+result = validator.validate_file("architecture.json")
+
+if result.is_valid():
+    print(f"Valid! ({len(result.warnings)} warnings)")
+else:
+    for err in result.errors:
+        print(f"ERROR [{err.rule}] {err.path}: {err.message}")
+```
+
+### JSON Schema
+
+For structural validation only, the JSON Schema can be used directly:
 
 ```bash
 # Using python-jsonschema
