@@ -62,7 +62,9 @@ jobs:
       - name: Install build and test dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build twine pytest
+          # jsonschema is the package's runtime dependency, needed by
+          # the test suite before the package itself is built.
+          pip install build twine pytest jsonschema
         working-directory: ${{ env.PACKAGE_DIR }}
 
       - name: Run test suite
