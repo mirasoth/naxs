@@ -326,7 +326,7 @@ The following types are recognized in NAXS 0.1. Types not in this list are treat
 | `groupedQueryAttention` | Grouped-query attention (GQA) | `embedDim`, `numHeads`, `numKVHeads`, `headDim` |
 | `crossAttention` | Cross-attention between two streams | `numHeads`, `hiddenDim` |
 | `attention` | Generic attention (unspecified variant) | — |
-| `mla` | Multi-head latent attention (DeepSeek MLA) | `kvLatentDim`, `qLatentDim`, `ropeHeadDim` |
+| `mla` | Multi-head latent attention (DeepSeek MLA) | `embedDim`, `numHeads`, `kvLatentDim`, `qLatentDim`, `ropeHeadDim` |
 
 #### Normalization
 
@@ -350,10 +350,10 @@ The following types are recognized in NAXS 0.1. Types not in this list are treat
 
 | Type | Description | Key Parameters |
 |------|-------------|----------------|
-| `feedForward` | Standard feed-forward network | `hiddenDim`, `ffDim` |
+| `feedForward` | Standard feed-forward network | `embedDim`, `hiddenDim`, `ffDim` |
 | `ffn` | Generic feed-forward (alias) | — |
-| `swiglu` | SwiGLU FFN | `intermediateSize`, `dim` |
-| `geglu` | GeGLU FFN | `intermediateSize`, `dim` |
+| `swiglu` | SwiGLU FFN | `embedDim`, `hiddenDim`, `dim`, `intermediateSize` |
+| `geglu` | GeGLU FFN | `embedDim`, `hiddenDim`, `dim`, `intermediateSize` |
 
 #### Structural
 
@@ -361,7 +361,7 @@ The following types are recognized in NAXS 0.1. Types not in this list are treat
 |------|-------------|----------------|
 | `add` | Element-wise addition (residual connection) | — |
 | `residual` | Residual connection wrapper | — |
-| `concatenate` | Tensor concatenation | — |
+| `concatenate` | Tensor concatenation | `dim`, `axis`, `numInputs` |
 | `multiply` | Element-wise multiplication (gating) | — |
 | `transformerBlock` | Composite transformer block | `embedDim`, `numHeads`, `ffDim` |
 
@@ -369,8 +369,8 @@ The following types are recognized in NAXS 0.1. Types not in this list are treat
 
 | Type | Description | Key Parameters |
 |------|-------------|----------------|
-| `moeLayer` | Mixture of experts layer | `numExperts`, `expertDim`, `topK` |
-| `sharedExpertMoE` | MoE with shared experts | `numExperts`, `expertDim`, `topK`, `numSharedExperts` |
+| `moeLayer` | Mixture of experts layer | `embedDim`, `numExperts`, `expertDim`, `topK` |
+| `sharedExpertMoE` | MoE with shared experts | `embedDim`, `numExperts`, `expertDim`, `topK`, `numSharedExperts` |
 | `patchEmbed` | Patch embedding (ViT) | `imgSize`, `patchSize`, `embedDim`, `inChans` |
 | `seBlock` | Squeeze-and-excitation block | `channels`, `reduction` |
 | `gcn_conv` | Graph convolution layer | — |
@@ -619,7 +619,7 @@ A conforming NAXS document MUST satisfy:
 The following are not errors but SHOULD be flagged:
 
 - Components with `type: "custom"` and empty `params`.
-- Components without a `scope`.
+- Components without a `scope` **when scope usage is inconsistent within the document** — i.e. some components carry a `scope` while others do not. A document that omits `scope` everywhere is consistent (scope is optional metadata, [§12](#12-scope-notation)) and produces no warning.
 - Parameter names not in the standard registry for the given `type`.
 - Documents without a `description`.
 
@@ -1184,6 +1184,7 @@ Connection fields (`id`, `from`, `to`, `fromPort`, `toPort`) are unchanged.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 0.1.1 | 2026-09-23 | Evidence-based registry update from full-atlas validation (288 architectures): `embedDim`/`hiddenDim` added as standard params for `swiglu`, `geglu`, `feedForward`, `moeLayer`, `sharedExpertMoE`, `mla` (+`numHeads`), `positionalEncoding`; `dim`/`axis`/`numInputs` added for `concatenate` (§7.1, Appendix A). §13.4 scope warning narrowed to inconsistent scope usage within a document. |
 | 0.1 | 2026-09-23 | Initial public draft. Includes block templates ([§25](#25-block-templates-and-repetition)): reusable subgraph definitions, `block_ref` components, `repeat` directives for layer/block repetition, parameter binding, and scope index substitution. |
 
 ---
@@ -1721,9 +1722,9 @@ The following parameter names appear across the 288 architectures in the Atlas k
 
 | Parameter | Type | Used By | Example |
 |-----------|------|---------|---------|
-| `numHeads` | integer | `multiHeadAttention`, `groupedQueryAttention`, `transformerBlock` | `12` |
-| `hiddenDim` | integer | `multiHeadAttention`, `feedForward` | `768` |
-| `embedDim` | integer | `groupedQueryAttention` | `4096` |
+| `numHeads` | integer | `multiHeadAttention`, `groupedQueryAttention`, `transformerBlock`, `mla` | `12` |
+| `hiddenDim` | integer | `multiHeadAttention`, `feedForward`, `swiglu`, `geglu` | `768` |
+| `embedDim` | integer | `groupedQueryAttention`, `swiglu`, `geglu`, `feedForward`, `transformerBlock`, `moeLayer`, `sharedExpertMoE`, `mla`, `positionalEncoding` | `4096` |
 | `numKVHeads` | integer | `groupedQueryAttention` | `8` |
 | `headDim` | integer | `groupedQueryAttention` | `128` |
 | `kvLatentDim` | integer | `mla` | `512` |
@@ -1770,12 +1771,13 @@ The following parameter names appear across the 288 architectures in the Atlas k
 |-----------|------|---------|---------|
 | `ffDim` | integer | `feedForward` | `3072` |
 | `intermediateSize` | integer | `swiglu`, `geglu` | `11008` |
-| `dim` | integer | `swiglu`, `geglu` | `4096` |
+| `dim` | integer | `swiglu`, `geglu`, `concatenate` | `4096` |
 
 ### MoE Parameters
 
 | Parameter | Type | Used By | Example |
 |-----------|------|---------|---------|
+| `embedDim` | integer | `moeLayer`, `sharedExpertMoE` | `4096` |
 | `numExperts` | integer | `moeLayer`, `sharedExpertMoE` | `256` |
 | `expertDim` | integer | `moeLayer`, `sharedExpertMoE` | `7168` |
 | `topK` | integer | `moeLayer`, `sharedExpertMoE` | `8` |
@@ -1796,6 +1798,14 @@ The following parameter names appear across the 288 architectures in the Atlas k
 |-----------|------|---------|---------|
 | `channels` | integer | `seBlock` | `32` |
 | `reduction` | integer | `seBlock` | `4` |
+
+### Structural Parameters
+
+| Parameter | Type | Used By | Example |
+|-----------|------|---------|---------|
+| `dim` | integer | `concatenate` | `1` |
+| `axis` | integer | `concatenate` | `1` |
+| `numInputs` | integer | `concatenate` | `3` |
 
 ### Input Parameters
 
@@ -1913,4 +1923,8 @@ To ensure round-trip fidelity (read → write → read produces identical semant
 
 ## License
 
-This specification is licensed under the Creative Commons Attribution 4.0 International License (CC-BY-4.0) and the Apache License 2.0. Implementations may choose either license.
+This specification document — `specification.md`, including the JSON examples embedded within it — is licensed under the **Creative Commons Attribution 4.0 International Public License (CC-BY-4.0)**. The full legal code is available as [`LICENSE-CC-BY-4.0.md`](LICENSE-CC-BY-4.0.md) in the repository root.
+
+All other artifacts in the repository — the machine-readable JSON Schema (`naxs/v0.1/schema.json`), the example documents (`naxs/v0.1/examples/`), and the `pynaxs` reference validator — are licensed under the **Apache License 2.0** (see [`LICENSE`](LICENSE)).
+
+Implementations may choose either license.

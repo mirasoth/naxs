@@ -155,9 +155,16 @@ The full specification is in [`specification.md`](specification.md). Key section
 
 ## License
 
-- The **specification text** (`specification.md`) is licensed under CC-BY-4.0.
-- The **JSON Schema and examples** are licensed under Apache-2.0.
-- Implementations may choose either license.
+Code in this repository is licensed under [Apache-2.0](LICENSE). Documentation — the specification text in `specification.md`, including the JSON examples embedded within it — is licensed under [CC-BY-4.0](LICENSE-CC-BY-4.0.md). See individual directories for details:
+
+| Path | Content | License |
+|------|---------|---------|
+| `specification.md` | Specification text (including embedded JSON examples) | CC-BY-4.0 |
+| `naxs/v0.1/` | JSON Schema + example documents | Apache-2.0 |
+| `pynaxs/` | Reference validator | Apache-2.0 |
+| `assets/` | Brand assets | Apache-2.0 |
+
+Implementations may choose either license.
 
 ## Contributing
 

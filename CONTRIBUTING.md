@@ -46,7 +46,9 @@ The operator type registry (§7 of the specification) grows through community pr
 
 ## License
 
-- Specification text: **CC-BY-4.0**
-- JSON Schema, examples, and `pynaxs`: **Apache-2.0**
+Code in this repository is licensed under **Apache-2.0**. Documentation — the specification text in `specification.md` — is licensed under **CC-BY-4.0**. See individual directories for details ([root `LICENSE`](LICENSE), [`LICENSE-CC-BY-4.0.md`](LICENSE-CC-BY-4.0.md), [`naxs/v0.1/LICENSE.md`](naxs/v0.1/LICENSE.md), [`pynaxs/LICENSE.md`](pynaxs/LICENSE.md)).
 
-By contributing, you agree that your contributions will be licensed under these terms.
+By contributing, you agree that:
+
+- contributions to `specification.md` (specification text) are licensed under **CC-BY-4.0**
+- contributions to the JSON Schema, example documents, `pynaxs`, or any other code are licensed under **Apache-2.0**

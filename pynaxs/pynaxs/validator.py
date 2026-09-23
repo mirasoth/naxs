@@ -20,8 +20,9 @@ warnings into a single result:
    directives, and resolvable ``$param`` / ``$expr`` references
    without circular template nesting.
 5. Soft validation — warnings for conforming but suboptimal documents
-   (missing description or scope, custom operators with empty
-   params, non-standard parameter names).
+    (missing description, custom operators with empty params,
+    inconsistent scope usage within a document, and non-standard
+    parameter names).
 """
 
 from __future__ import annotations
@@ -861,9 +862,16 @@ class NaxsValidator:
         Emits warnings (never errors) for conforming but suboptimal
         documents: a missing document ``description``, components of
         type ``"custom"`` with empty ``params``, components without a
-        ``scope``, and parameter names outside the standard catalog
-        for the component's type (see
+        ``scope`` **when scope usage is inconsistent within the
+        document** (some components carry a scope while others do
+        not), and parameter names outside the standard catalog for the
+        component's type (see
         :data:`pynaxs.registry.STANDARD_PARAMS`).
+
+        Scope is optional metadata (§12); a document that omits scope
+        everywhere is consistent and produces no scope warnings — the
+        warning only flags documents that group *some* components
+        hierarchically but leave others unscoped.
         """
         # §13.4: Documents without a description
         if not doc.get("description"):
@@ -872,6 +880,14 @@ class NaxsValidator:
         components = doc.get("components", [])
         if not isinstance(components, list):
             return
+
+        # §13.4: Inconsistent scope usage — only warn about components
+        # missing a scope when at least one component in the document
+        # has one. Uniformly unscoped documents are valid and silent.
+        any_scoped = any(
+            isinstance(comp, dict) and comp.get("scope")
+            for comp in components
+        )
 
         for i, comp in enumerate(components):
             if not isinstance(comp, dict):
@@ -884,9 +900,9 @@ class NaxsValidator:
             if comp_type == "custom" and (not params or len(params) == 0):
                 result.add_warning(f"{cpath}.params", "Custom operator with empty params", "§13.4")
 
-            # §13.4: Components without a scope
-            if not comp.get("scope"):
-                result.add_warning(f"{cpath}.scope", "Component has no scope", "§13.4")
+            # §13.4: Components without a scope (inconsistent usage only)
+            if any_scoped and not comp.get("scope"):
+                result.add_warning(f"{cpath}.scope", "Component has no scope (other components in this document are scoped)", "§13.4")
 
             # §13.4: Parameter names not in the standard registry
             if isinstance(params, dict) and len(params) > 0:

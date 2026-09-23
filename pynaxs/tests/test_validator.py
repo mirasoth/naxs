@@ -232,14 +232,70 @@ class TestSoftValidation(unittest.TestCase):
             "name": "Test",
             "description": "Has description.",
             "components": [
-                {"id": "n1", "type": "input", "name": "x", "params": {}, "inputs": [], "outputs": []},
+                {"id": "n1", "type": "input", "name": "x", "params": {}, "inputs": [], "outputs": ["n2"], "scope": "input"},
+                {"id": "n2", "type": "linear", "name": "fc", "params": {}, "inputs": ["n1"], "outputs": []},
+            ],
+            "connections": [{"id": "c1", "from": "n1", "to": "n2"}],
+        }
+        result = self.validator.validate_document(doc, "test")
+        self.assertTrue(result.is_valid())
+        warn_msgs = [w.message for w in result.warnings]
+        self.assertTrue(any("scope" in m for m in warn_msgs))
+
+    def test_uniformly_unscoped_no_scope_warning(self):
+        """A document that omits scope everywhere is consistent — no warning."""
+        doc = {
+            "spec_version": "0.1",
+            "id": "test",
+            "name": "Test",
+            "description": "Has description.",
+            "components": [
+                {"id": "n1", "type": "input", "name": "x", "params": {}, "inputs": [], "outputs": ["n2"]},
+                {"id": "n2", "type": "linear", "name": "fc", "params": {}, "inputs": ["n1"], "outputs": []},
+            ],
+            "connections": [{"id": "c1", "from": "n1", "to": "n2"}],
+        }
+        result = self.validator.validate_document(doc, "test")
+        self.assertTrue(result.is_valid())
+        warn_msgs = [w.message for w in result.warnings]
+        self.assertFalse(any("scope" in m for m in warn_msgs))
+
+    def test_embeddim_standard_for_transformer_types(self):
+        """embedDim is standard for transformer-family types (no warning)."""
+        for comp_type in ("swiglu", "geglu", "feedForward", "moeLayer", "sharedExpertMoE", "mla", "positionalEncoding", "transformerBlock"):
+            doc = {
+                "spec_version": "0.1",
+                "id": "test",
+                "name": "Test",
+                "description": "Test.",
+                "components": [
+                    {"id": "n1", "type": comp_type, "name": "x", "params": {"embedDim": 4096}, "inputs": [], "outputs": []},
+                ],
+                "connections": [],
+            }
+            result = self.validator.validate_document(doc, f"test_{comp_type}")
+            self.assertTrue(result.is_valid())
+            warn_msgs = [w.message for w in result.warnings]
+            self.assertFalse(
+                any("embedDim" in m for m in warn_msgs),
+                f"embedDim should be standard for '{comp_type}': {warn_msgs}",
+            )
+
+    def test_concatenate_standard_params(self):
+        doc = {
+            "spec_version": "0.1",
+            "id": "test",
+            "name": "Test",
+            "description": "Test.",
+            "components": [
+                {"id": "n1", "type": "concatenate", "name": "cat", "params": {"dim": 1, "axis": 1, "numInputs": 3}, "inputs": [], "outputs": []},
             ],
             "connections": [],
         }
         result = self.validator.validate_document(doc, "test")
         self.assertTrue(result.is_valid())
         warn_msgs = [w.message for w in result.warnings]
-        self.assertTrue(any("scope" in m for m in warn_msgs))
+        self.assertFalse(any("not in the standard registry" in m for m in warn_msgs))
 
     def test_custom_empty_params_warning(self):
         doc = {
