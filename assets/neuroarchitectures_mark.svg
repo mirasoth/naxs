@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="-60 -60 120 120" role="img" aria-label="NeuroArchitectures mark">
+  <defs>
+    <linearGradient id="synapse" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="55%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+    <linearGradient id="stroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g filter="url(#glow)">
+    <!-- Hexagonal "architecture" frame -->
+    <polygon points="0,-52 45,-26 45,26 0,52 -45,26 -45,-26"
+             fill="none" stroke="url(#stroke)" stroke-width="4.5"
+             stroke-linejoin="round"/>
+
+    <!-- Synapses -->
+    <g stroke="url(#synapse)" stroke-width="1.8" opacity="0.75">
+      <line x1="0"   y1="-30" x2="-27" y2="-6"/>
+      <line x1="0"   y1="-30" x2="27"  y2="-6"/>
+      <line x1="0"   y1="-30" x2="0"   y2="0"/>
+      <line x1="-27" y1="-6"  x2="0"   y2="0"/>
+      <line x1="27"  y1="-6"  x2="0"   y2="0"/>
+      <line x1="-27" y1="-6"  x2="-24" y2="30"/>
+      <line x1="27"  y1="-6"  x2="24"  y2="30"/>
+      <line x1="0"   y1="0"   x2="-24" y2="30"/>
+      <line x1="0"   y1="0"   x2="24"  y2="30"/>
+      <line x1="-24" y1="30"  x2="24"  y2="30"/>
+    </g>
+
+    <!-- Neurons -->
+    <g fill="url(#synapse)">
+      <circle cx="0"   cy="-30" r="7.5"/>
+      <circle cx="-27" cy="-6"  r="5.5"/>
+      <circle cx="27"  cy="-6"  r="5.5"/>
+      <circle cx="0"   cy="0"   r="8.5"/>
+      <circle cx="-24" cy="30"  r="5.5"/>
+      <circle cx="24"  cy="30"  r="5.5"/>
+    </g>
+  </g>
+</svg>

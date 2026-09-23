@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/mirasoth/naxs/main/naxs/v1.0/schema.json",
+  "$schema": "https://raw.githubusercontent.com/neuroarchitectures/naxs/main/naxs/v1.0/schema.json",
   "spec_version": "1.0",
   "id": "llama-style-repetition",
   "name": "Llama-Style (Nested Blocks + Expr Params)",

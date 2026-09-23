@@ -2,7 +2,9 @@
 
 **Version:** 1.0  
 **Status:** Draft for Public Review  
-**License:** CC-BY-4.0 / Apache-2.0 (dual)
+**License:** CC-BY-4.0 / Apache-2.0 (dual)  
+**Website:** https://neuroarchitectures.github.io  
+**Community:** https://github.com/neuroarchitectures
 
 ---
 
@@ -159,4 +161,4 @@ The full specification is in [`specification.md`](specification.md). Key section
 
 ## Contributing
 
-This specification is in **Draft for Public Review** status. Feedback, issues, and pull requests are welcome.
+This specification is in **Draft for Public Review** status. Feedback, issues, and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) and the [issue templates](.github/ISSUE_TEMPLATE/) for how to submit spec feedback or register a new operator type.

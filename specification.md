@@ -3,7 +3,7 @@
 **Version:** 1.0  
 **Status:** Draft for Public Review  
 **License:** CC-BY-4.0 / Apache-2.0 (dual)  
-**Repository:** https://github.com/mirasoth/naxs  
+**Repository:** https://github.com/neuroarchitectures/naxs  
 **Created:** 2026-09-23  
 
 ---
@@ -138,7 +138,7 @@ A NAXS document is a single JSON object with the following top-level structure:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/mirasoth/naxs/main/naxs/v1.0/schema.json",
+  "$schema": "https://raw.githubusercontent.com/neuroarchitectures/naxs/main/naxs/v1.0/schema.json",
   "spec_version": "1.0",
   "id": "bert-base",
   "name": "BERT-Base",

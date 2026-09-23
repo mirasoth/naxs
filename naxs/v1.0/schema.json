@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/mirasoth/naxs/main/naxs/v1.0/schema.json",
+  "$id": "https://raw.githubusercontent.com/neuroarchitectures/naxs/main/naxs/v1.0/schema.json",
   "title": "Neural Architecture Exchange Specification (NAXS) v1.0",
   "description": "A vendor-independent JSON format for describing neural network architectures as directed graphs of typed, parameterized components. Supports block templates and repetition.",
   "type": "object",
