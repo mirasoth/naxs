@@ -18,7 +18,7 @@ The goal is interoperability: any tool, vendor, research group, or automated age
 
 ```
 .
-├── architecture_spec.md          # Full specification (§1–§25 + appendices)
+├── specification.md              # Full specification (§1–§25 + appendices)
 ├── LICENSE                       # Apache-2.0
 ├── naxs/
 │   └── v1.0/
@@ -137,7 +137,7 @@ print('Valid!')
 
 ## Specification
 
-The full specification is in [`architecture_spec.md`](architecture_spec.md). Key sections:
+The full specification is in [`specification.md`](specification.md). Key sections:
 
 | Section | Topic |
 |---------|-------|
@@ -153,7 +153,7 @@ The full specification is in [`architecture_spec.md`](architecture_spec.md). Key
 
 ## License
 
-- The **specification text** (`architecture_spec.md`) is licensed under CC-BY-4.0.
+- The **specification text** (`specification.md`) is licensed under CC-BY-4.0.
 - The **JSON Schema and examples** are licensed under Apache-2.0.
 - Implementations may choose either license.
 

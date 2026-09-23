@@ -8,6 +8,97 @@
 
 ---
 
+## Table of Contents
+
+| # | Section | What It Covers |
+|---|---------|---------------|
+| 1 | [Abstract](#1-abstract) | What NAXS is and is not |
+| 2 | [Design Principles](#2-design-principles) | Six core principles |
+| 3 | [Relationship to Other Formats](#3-relationship-to-other-formats) | ONNX, PyTorch, MLIR comparison |
+| 4 | [Document Structure](#4-document-structure) | Top-level JSON fields |
+| 5 | [Component (Node)](#5-component-node) | Node definition, required/optional fields |
+| 6 | [Parameters](#6-parameters) | Value types, symbolic dims, naming |
+| 7 | [Operator Type Registry](#7-operator-type-registry) | 79 standard types + custom |
+| 8 | [Connection (Edge)](#8-connection-edge) | Edge definition, redundancy rules |
+| 9 | [Metadata](#9-metadata) | Vendor-specific info |
+| 10 | [Provenance](#10-provenance) | Origin tracking |
+| 11 | [Extension Model](#11-extension-model) | Vendor extensions, versioning |
+| 12 | [Scope Notation](#12-scope-notation) | Hierarchical grouping |
+| 13 | [Validation Rules](#13-validation-rules) | 15 rules + soft validation |
+| 14 | [Minimal Example](#14-minimal-example) | Smallest valid document |
+| 15–19 | [Full Examples](#15-full-example-bert-base-excerpt) | BERT, ResNet, Llama, Mamba, 3DGS |
+| 20 | [Conformance](#20-conformance) | Producer / Consumer / Validator |
+| 21 | [JSON Schema](#21-json-schema) | Machine-readable schema |
+| 22 | [Migration from Atlas model.json](#22-migration-from-atlas-modeljson) | Field mapping table |
+| 23 | [Glossary](#23-glossary) | Term definitions |
+| 24 | [Change Log](#24-change-log) | Version history |
+| 25 | [Block Templates & Repetition](#25-block-templates-and-repetition) | Reusable subgraphs, repeat directives |
+| A | [Standard Parameter Name Catalog](#appendix-a-standard-parameter-name-catalog) | All standard params by type |
+| B | [Operator Type Frequency](#appendix-b-operator-type-frequency) | Statistics from 288 architectures |
+| C | [Scope Pattern Catalog](#appendix-c-scope-pattern-catalog) | Common scope patterns |
+| D | [Implementation Notes](#appendix-d-implementation-notes) | Parsing, graph, coercion, round-trip |
+
+---
+
+## Quick Reference Card
+
+> **For agents coding against this spec:** Start here. Everything below is the full detail.
+
+**NAXS = a JSON file describing a neural architecture as a directed graph.**
+
+```json
+{
+  "spec_version": "1.0",          // REQUIRED — must be "1.0"
+  "id": "my-arch",                // REQUIRED — URL-safe slug
+  "name": "My Architecture",      // REQUIRED — display name
+  "components": [ ... ],          // REQUIRED — graph nodes (≥1)
+  "connections": [ ... ],         // REQUIRED — graph edges (may be empty)
+  "description": "...",           // optional
+  "block_templates": [ ... ],     // optional — see §25
+  "metadata": { ... },            // optional — vendor info
+  "provenance": { ... }           // optional — origin info
+}
+```
+
+**Component (node):**
+```json
+{
+  "id": "n1",                     // REQUIRED — unique, no dots/whitespace
+  "type": "conv2d",               // REQUIRED — operator type (§7)
+  "name": "Conv1",                // REQUIRED — display name
+  "params": { "inChannels": 3 }, // REQUIRED — may be {}
+  "inputs": ["n0"],              // REQUIRED — source IDs
+  "outputs": ["n2"],             // REQUIRED — target IDs
+  "scope": "backbone.layer.0",   // optional — dot-separated hierarchy
+  "position": { "x": 100, "y": 200 }, // optional — visual only
+  "block_ref": "template_id",    // optional — see §25.3
+  "repeat": { "count": 12 }      // optional — see §25.4
+}
+```
+
+**Connection (edge):**
+```json
+{
+  "id": "c1",                     // REQUIRED — unique
+  "from": "n1",                  // REQUIRED — source component ID
+  "to": "n2",                    // REQUIRED — target component ID
+  "fromPort": "bottom",          // optional — visual hint
+  "toPort": "top"                // optional — visual hint
+}
+```
+
+**Parameter values allowed:** `integer`, `float`, `boolean`, `string`, `array` (of int/string).  
+**NOT allowed:** `null`, nested objects, arrays of arrays.
+
+**Key rules at a glance:**
+- Component `inputs`/`outputs` and `connections` array MUST be consistent (§13.2).
+- Unknown fields MUST be preserved (§4.3, §5.3).
+- Unknown operator types MUST NOT cause failure (§7.3).
+- Graph MAY be cyclic (§13.2, rule 11).
+- Block templates expand to standard components (§25).
+
+---
+
 ## 1. Abstract
 
 The **Neural Architecture Exchange Specification (NAXS)** defines a vendor-independent, framework-agnostic JSON format for describing neural network architectures as directed graphs of typed, parameterized components.
@@ -75,13 +166,15 @@ A NAXS document is a single JSON object with the following top-level structure:
 | `category` | string | Domain category (e.g. `"Computer Vision"`, `"NLP"`, `"Recommendation"`). |
 | `icon` | string | Emoji or icon name for UI display. |
 | `real_param_count` | integer | Real-world parameter count (for evaluation/cross-check). |
-| `block_templates` | array | Reusable subgraph definitions. See §25. |
-| `metadata` | object | Arbitrary vendor-specific metadata. See §9. |
-| `provenance` | object | Origin information. See §10. |
+| `block_templates` | array | Reusable subgraph definitions. See [§25](#25-block-templates-and-repetition). |
+| `metadata` | object | Arbitrary vendor-specific metadata. See [§9](#9-metadata). |
+| `provenance` | object | Origin information. See [§10](#10-provenance). |
 
 ### 4.3 Extension Fields
 
 Any top-level field not listed above **MUST** be preserved by conforming consumers. Unknown fields **MUST NOT** cause parsing failure. This enables vendors to embed custom metadata without forking the spec.
+
+> **For Implementers:** Use a JSON parser that preserves unknown fields (e.g. serde's `#[serde(flatten)]` in Rust, `**kwargs` in Python). Never use a strict schema that drops unknown keys.
 
 ---
 
@@ -109,9 +202,9 @@ A component is a single node in the architecture graph. It represents one operat
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | string | Unique component identifier within the document. Must be referenced by at least one connection or by another component's `inputs`/`outputs`. |
-| `type` | string | Operator type identifier. See §7 for the operator type registry. |
+| `type` | string | Operator type identifier. See [§7](#7-operator-type-registry) for the operator type registry. |
 | `name` | string | Human-readable display name for this instance. |
-| `params` | object | Parameter key-value map. May be empty `{}`. See §6. |
+| `params` | object | Parameter key-value map. May be empty `{}`. See [§6](#6-parameters). |
 | `inputs` | array of strings | IDs of components that feed into this component. May be empty for input/source nodes. |
 | `outputs` | array of strings | IDs of components this component feeds into. May be empty for output/sink nodes. |
 
@@ -119,12 +212,12 @@ A component is a single node in the architecture graph. It represents one operat
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `scope` | string | Hierarchical scope path using dot notation (e.g. `"layer.0.attention"`, `"encoder.block.1.ffn"`). Enables grouping and hierarchical analysis. |
+| `scope` | string | Hierarchical scope path using dot notation (e.g. `"layer.0.attention"`, `"encoder.block.1.ffn"`). Enables grouping and hierarchical analysis. See [§12](#12-scope-notation). |
 | `position` | object | Visual layout position `{ "x": number, "y": number }`. Rendering hint only; has no architectural semantics. |
 | `input_shape` | array | Declared input tensor shape (e.g. `[1, 512, 768]`). May contain symbolic strings (e.g. `["batch", "seq_len", 768]`). |
 | `notes` | string | Free-text annotation for this component. |
-| `repeat` | object | Repetition directive: expand this component into N copies. See §25.4. |
-| `block_ref` | string | Reference to a block template by `id`. See §25.3. |
+| `repeat` | object | Repetition directive: expand this component into N copies. See [§25.4](#254-repeat-directive). |
+| `block_ref` | string | Reference to a block template by `id`. See [§25.3](#253-block-reference-components). |
 
 ### 5.3 Extension Fields
 
@@ -136,6 +229,8 @@ Any component field not listed above **MUST** be preserved by conforming consume
 - IDs should be short and stable (e.g. `"n1"`, `"n2"`, `"embed"`, `"attn_1"`).
 - IDs must not contain whitespace or the `.` character (reserved for scope notation).
 - Renumbering IDs is a valid transformation; consumers must follow references, not positions.
+
+> **For Implementers:** The `.` character is reserved because expanded block-template node IDs use dot notation (e.g. `layer_0.attn`). If you encounter a `.` in an ID, it likely comes from block expansion — see [§25.3](#253-block-reference-components).
 
 ---
 
@@ -177,7 +272,7 @@ NAXS does not enforce a parameter naming convention. Parameter names are operato
 | Descriptive | `vocabSize`, `inChannels`, `outChannels`, `ffDim` |
 | Boolean flags | `bias`, `residual`, `training` |
 
-A registry of standard parameter names per operator type is provided in §7.
+A registry of standard parameter names per operator type is provided in [§7](#7-operator-type-registry) and [Appendix A](#appendix-a-standard-parameter-name-catalog).
 
 ### 6.4 Parameters vs. Weights
 
@@ -277,7 +372,6 @@ The following types are recognized in NAXS 1.0. Types not in this list are treat
 | `moeLayer` | Mixture of experts layer | `numExperts`, `expertDim`, `topK` |
 | `sharedExpertMoE` | MoE with shared experts | `numExperts`, `expertDim`, `topK`, `numSharedExperts` |
 | `patchEmbed` | Patch embedding (ViT) | `imgSize`, `patchSize`, `embedDim`, `inChans` |
-| `positionalEncoding` | Positional encoding | `maxLen`, `embedDim` |
 | `seBlock` | Squeeze-and-excitation block | `channels`, `reduction` |
 | `gcn_conv` | Graph convolution layer | — |
 | `rope` | Rotary position embedding | — |
@@ -286,11 +380,13 @@ The following types are recognized in NAXS 1.0. Types not in this list are treat
 
 Vendors MAY define custom operator types by using the `custom` type and providing a `name` that describes the operator. Consumers MUST preserve custom operators but MAY treat them as opaque.
 
-For vendor-specific operators that should be interoperable, vendors SHOULD register new types through the NAXS extension process (see §11).
+For vendor-specific operators that should be interoperable, vendors SHOULD register new types through the NAXS extension process (see [§11](#11-extension-model)).
 
 ### 7.3 Operator Type Extensibility
 
 New operator types are added through the extension process. The registry is versioned alongside the spec version. Consumers MUST NOT fail when encountering unknown types; they SHOULD treat unknown types as opaque nodes with their parameters preserved.
+
+> **For Implementers:** When you encounter an unknown `type`, do not crash. Store the component as an opaque node with its `params` preserved. Use the `name` field as a human-readable label. This is critical for forward compatibility.
 
 ---
 
@@ -341,6 +437,8 @@ The `connections` array and the component `inputs`/`outputs` fields encode the s
 Both forms **MUST** be consistent. If component A lists `"n5"` in its `outputs`, then there **MUST** be a connection `{ "from": "A", "to": "n5" }` in the `connections` array, and vice versa.
 
 Consumers MAY use either form for graph construction but SHOULD verify consistency.
+
+> **For Implementers:** You can build the graph from either `connections` or `inputs`/`outputs` alone, but you SHOULD verify both forms agree. See [§13.2](#132-consistency), rules 9–10.
 
 ### 8.5 Port-Level Connectivity (Future Extension)
 
@@ -484,6 +582,8 @@ backbone.stem
 | `embeddings` | `embeddings` | Embedding layer group |
 | `stem` | `stem` | Initial processing layers |
 
+> See [Appendix C](#appendix-c-scope-pattern-catalog) for the full catalog of observed scope patterns.
+
 ---
 
 ## 13. Validation Rules
@@ -522,6 +622,15 @@ The following are not errors but SHOULD be flagged:
 - Components without a `scope`.
 - Parameter names not in the standard registry for the given `type`.
 - Documents without a `description`.
+
+> **Validation Checklist for Implementers:**
+> - [ ] All required fields present and non-null (rules 1–3, 6)
+> - [ ] All IDs unique (rules 4, 8)
+> - [ ] All references resolve to existing IDs (rules 5, 7)
+> - [ ] `inputs`/`outputs` bidirectional consistency (rules 9–10)
+> - [ ] No `null`/nested-object/array-of-array param values (rules 12–15)
+> - [ ] Soft warnings reported separately from errors (§13.4)
+> - [ ] Block template rules checked (§25.11) if `block_templates` present
 
 ---
 
@@ -984,7 +1093,7 @@ A **producer** is conforming if it generates documents that:
 2. Include all required top-level fields (`spec_version`, `id`, `name`, `components`, `connections`).
 3. Include all required component fields (`id`, `type`, `name`, `params`, `inputs`, `outputs`).
 4. Include all required connection fields (`id`, `from`, `to`).
-5. Satisfy all validation rules in §13.
+5. Satisfy all validation rules in [§13](#13-validation-rules).
 6. Set `spec_version` to a valid version string.
 
 ### 20.2 Consumer Conformance
@@ -997,15 +1106,15 @@ A **consumer** is conforming if it:
 4. Does not fail when encountering unknown operator types (treats them as opaque).
 5. Does not fail when encountering unknown parameter names.
 6. Checks `spec_version` and warns (but does not fail) on unknown minor versions.
-7. Rejects only on major version mismatch or structural validation failure (§13.1).
+7. Rejects only on major version mismatch or structural validation failure ([§13.1](#131-structural-integrity)).
 
 ### 20.3 Validator Conformance
 
 A **validator** is conforming if it:
 
-1. Checks all rules in §13.
+1. Checks all rules in [§13](#13-validation-rules).
 2. Reports errors with field paths and human-readable messages.
-3. Reports soft validation warnings (§13.4) separately from errors.
+3. Reports soft validation warnings ([§13.4](#134-soft-validation-warnings)) separately from errors.
 4. Can validate both individual documents and batch (directory) inputs.
 
 ---
@@ -1015,7 +1124,7 @@ A **validator** is conforming if it:
 A machine-readable JSON Schema is provided alongside this specification at:
 
 ```
-atlas/naxs/v1.0/schema.json
+naxs/v1.0/schema.json
 ```
 
 The schema defines:
@@ -1065,7 +1174,7 @@ Connection fields (`id`, `from`, `to`, `fromPort`, `toPort`) are unchanged.
 | **Parameter** | A configurable property of a component (e.g. `numHeads`, `kernelSize`). |
 | **Scope** | A dot-separated hierarchical path grouping components (e.g. `layer.0.attention`). |
 | **Port** | A named connection point on a component. NAXS 1.0 uses visual port labels; semantic ports are reserved for future versions. |
-| **Block** | A reusable sub-graph with an explicit interface. NAXS defines block templates (§25) that can be referenced and repeated. Blocks can also be represented as architectures with scoped components. |
+| **Block** | A reusable sub-graph with an explicit interface. NAXS defines block templates ([§25](#25-block-templates-and-repetition)) that can be referenced and repeated. Blocks can also be represented as architectures with scoped components. |
 | **Provenance** | Information about how a document was created or transformed. |
 | **Metadata** | Vendor-specific information that does not affect architectural semantics. |
 
@@ -1075,205 +1184,7 @@ Connection fields (`id`, `from`, `to`, `fromPort`, `toPort`) are unchanged.
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.0 | 2026-09-23 | Initial public draft. Includes block templates (§25): reusable subgraph definitions, `block_ref` components, `repeat` directives for layer/block repetition, parameter binding, and scope index substitution. |
-
----
-
-## Appendix A: Standard Parameter Name Catalog
-
-The following parameter names appear across the 288 architectures in the Atlas knowledge base. They are **recommended** (not required) for the indicated operator types.
-
-### Attention Parameters
-
-| Parameter | Type | Used By | Example |
-|-----------|------|---------|---------|
-| `numHeads` | integer | `multiHeadAttention`, `groupedQueryAttention`, `transformerBlock` | `12` |
-| `hiddenDim` | integer | `multiHeadAttention`, `feedForward` | `768` |
-| `embedDim` | integer | `groupedQueryAttention` | `4096` |
-| `numKVHeads` | integer | `groupedQueryAttention` | `8` |
-| `headDim` | integer | `groupedQueryAttention` | `128` |
-| `kvLatentDim` | integer | `mla` | `512` |
-| `qLatentDim` | integer | `mla` | `512` |
-| `ropeHeadDim` | integer | `mla` | `64` |
-
-### Convolution Parameters
-
-| Parameter | Type | Used By | Example |
-|-----------|------|---------|---------|
-| `inChannels` | integer | `conv2d`, `depthwiseConv2d`, `conv1d` | `3` |
-| `outChannels` | integer | `conv2d`, `depthwiseConv2d`, `conv1d` | `64` |
-| `kernelSize` | integer or array | `conv2d`, `depthwiseConv2d`, `conv1d` | `7` or `[3, 3]` |
-| `stride` | integer or array | `conv2d`, `depthwiseConv2d` | `2` |
-| `padding` | integer or array | `conv2d`, `depthwiseConv2d` | `3` |
-
-### Linear Parameters
-
-| Parameter | Type | Used By | Example |
-|-----------|------|---------|---------|
-| `inFeatures` | integer | `linear` | `1024` |
-| `outFeatures` | integer | `linear` | `4096` |
-| `bias` | boolean | `linear` | `true` |
-
-### Embedding Parameters
-
-| Parameter | Type | Used By | Example |
-|-----------|------|---------|---------|
-| `vocabSize` | integer | `embedding` | `30522` |
-| `embeddingDim` | integer | `embedding` | `768` |
-| `maxSeqLen` | integer | `embedding` | `512` |
-| `numEmbeddings` | integer | `embedding` | `50280` |
-
-### Normalization Parameters
-
-| Parameter | Type | Used By | Example |
-|-----------|------|---------|---------|
-| `normalizedShape` | integer | `layerNorm`, `rmsNorm` | `768` |
-| `numFeatures` | integer | `batchNorm` | `64` |
-
-### Feed-Forward Parameters
-
-| Parameter | Type | Used By | Example |
-|-----------|------|---------|---------|
-| `ffDim` | integer | `feedForward` | `3072` |
-| `intermediateSize` | integer | `swiglu`, `geglu` | `11008` |
-| `dim` | integer | `swiglu`, `geglu` | `4096` |
-
-### MoE Parameters
-
-| Parameter | Type | Used By | Example |
-|-----------|------|---------|---------|
-| `numExperts` | integer | `moeLayer`, `sharedExpertMoE` | `256` |
-| `expertDim` | integer | `moeLayer`, `sharedExpertMoE` | `7168` |
-| `topK` | integer | `moeLayer`, `sharedExpertMoE` | `8` |
-| `numSharedExperts` | integer | `sharedExpertMoE` | `1` |
-
-### Patch Embedding Parameters
-
-| Parameter | Type | Used By | Example |
-|-----------|------|---------|---------|
-| `imgSize` | integer | `patchEmbed` | `224` |
-| `patchSize` | integer | `patchEmbed` | `32` |
-| `embedDim` | integer | `patchEmbed` | `768` |
-| `inChans` | integer | `patchEmbed` | `3` |
-
-### Squeeze-Excitation Parameters
-
-| Parameter | Type | Used By | Example |
-|-----------|------|---------|---------|
-| `channels` | integer | `seBlock` | `32` |
-| `reduction` | integer | `seBlock` | `4` |
-
-### Input Parameters
-
-| Parameter | Type | Used By | Example |
-|-----------|------|---------|---------|
-| `shape` | array | `input` | `[1, 512, 768]` or `[3, 224, 224]` |
-
----
-
-## Appendix B: Operator Type Frequency
-
-Based on analysis of 288 architectures (9,735 total components):
-
-| Type | Count | Category |
-|------|-------|----------|
-| `add` | 2228 | Structural |
-| `rmsNorm` | 1820 | Normalization |
-| `groupedQueryAttention` | 894 | Attention |
-| `swiglu` | 448 | Feed-Forward |
-| `custom` | 407 | Core/IO |
-| `conv2d` | 393 | Convolution |
-| `layerNorm` | 383 | Normalization |
-| `feedForward` | 312 | Feed-Forward |
-| `input` | 309 | Core/IO |
-| `output` | 291 | Core/IO |
-| `relu` | 237 | Activation |
-| `multiHeadAttention` | 232 | Attention |
-| `linear` | 200 | Linear |
-| `sharedExpertMoE` | 188 | Specialized |
-| `moeLayer` | 173 | Specialized |
-| `transformerBlock` | 139 | Structural |
-| `batchNorm` | 127 | Normalization |
-| `attention` | 97 | Attention |
-| `embedding` | 79 | Linear |
-| `concatenate` | 75 | Structural |
-
-**Total distinct operator types observed:** 79
-
----
-
-## Appendix C: Scope Pattern Catalog
-
-Common scope patterns observed across the knowledge base:
-
-| Pattern | Occurrences | Meaning |
-|---------|-------------|---------|
-| `layer.N.attention` | 1283 | Attention sub-block within layer N |
-| `layer.N.ffn` | 710 | Feed-forward sub-block within layer N |
-| `layer.N` | 368 | Layer N (composite block) |
-| `block` | 116 | Generic block grouping |
-| `backbone` | 109 | Feature extraction backbone |
-| `encoder` | 78 | Encoder section |
-| `decoder` | 48 | Decoder section |
-| `head` | 44 | Task-specific output head |
-| `heads` | 44 | Multiple output heads |
-| `embeddings` | 39 | Embedding layer group |
-| `training` | 39 | Training-related components |
-| `features.stage.N` | 31 | Feature pyramid stage N |
-| `encoder.layer.N.attention` | 30 | Encoder layer N attention |
-| `mlp` | 27 | MLP sub-block |
-
----
-
-## Appendix D: Implementation Notes
-
-### D.1 JSON Parsing
-
-NAXS documents are standard JSON. Any JSON parser can consume them. No custom parser is required.
-
-Key implementation considerations:
-- Use a JSON parser that preserves unknown fields (e.g. serde's `#[serde(flatten)]` in Rust, `**kwargs` in Python).
-- Parameter values are heterogeneous (`int`, `float`, `bool`, `string`, `array`). Use a tagged union or `JsonValue` type.
-- `position` is always `{ "x": number, "y": number }`. Treat as `f64` for maximum precision.
-
-### D.2 Graph Construction
-
-To construct a directed graph from a NAXS document:
-
-1. Create a node for each component, keyed by `id`.
-2. For each connection, create a directed edge from `from` to `to`.
-3. Verify that component `inputs`/`outputs` are consistent with connections (§13.2, rules 9-10).
-4. The graph may be cyclic (recurrent architectures). Do not assume acyclicity.
-
-### D.3 Operator Type Resolution
-
-When resolving operator types:
-
-1. Check if `type` is in the standard registry (§7.1).
-2. If not, treat the component as an opaque node with its `params` preserved.
-3. Do not fail on unknown types.
-4. For `custom` type, use the `name` field as a human-readable description.
-
-### D.4 Parameter Type Coercion
-
-When reading parameters:
-
-- JSON integers → `int64`
-- JSON floats → `float64`
-- JSON booleans → `bool`
-- JSON strings → `string` (or symbolic dimension if in a shape array)
-- JSON arrays → `list` of mixed `int64`/`string`
-- Do not coerce between types (e.g. do not treat `768` as `768.0`).
-
-### D.5 Round-Trip Fidelity
-
-To ensure round-trip fidelity (read → write → read produces identical semantics):
-
-1. Preserve all fields, including unknown ones.
-2. Preserve key ordering within objects (use an ordered map, not a hash map).
-3. Do not modify parameter values during transit.
-4. Preserve numeric precision (do not convert integers to floats).
-5. Preserve `null` values in extension fields (but `null` is not a valid parameter value).
+| 1.0 | 2026-09-23 | Initial public draft. Includes block templates ([§25](#25-block-templates-and-repetition)): reusable subgraph definitions, `block_ref` components, `repeat` directives for layer/block repetition, parameter binding, and scope index substitution. |
 
 ---
 
@@ -1378,6 +1289,8 @@ A **block template** is a named, parameterized subgraph definition stored in the
   ]
 }
 ```
+
+> **For Implementers:** A block template's `nodes` are **prototypes** — they are not real components in the document graph. They only become real components when a `block_ref` component references and expands them. Think of templates as functions and `block_ref` components as function calls.
 
 ### 25.3 Block Reference Components
 
@@ -1554,7 +1467,7 @@ Nesting depth is not limited by the spec. Consumers SHOULD detect and report cir
 
 ### 25.8 Complete Example: BERT-Base with Repetition
 
-The following NAXS document represents BERT-Base (12 transformer layers) using a single block template and a repeat directive — **7 components instead of 51**:
+The following NAXS document represents BERT-Base (12 transformer layers) using a single block template and a repeat directive — **5 components instead of 51**:
 
 ```json
 {
@@ -1648,7 +1561,7 @@ The following NAXS document represents BERT-Base (12 transformer layers) using a
 }
 ```
 
-**Expansion result:** This 5-component document expands to the same 51-component graph as the NAXS 1.0 BERT-Base example (§15). The expansion is:
+**Expansion result:** This 5-component document expands to the same 51-component graph as the NAXS BERT-Base example ([§15](#15-full-example-bert-base-excerpt)). The expansion is:
 
 | Component | Expands To |
 |-----------|-----------|
@@ -1753,7 +1666,7 @@ Block templates are fully backward compatible:
 
 ### 25.11 Validation Rules for Block Templates
 
-In addition to the rules in §13, documents with block templates MUST satisfy:
+In addition to the rules in [§13](#13-validation-rules), documents with block templates MUST satisfy:
 
 1. Every `block_templates` entry has a unique `id`.
 2. Every `block_ref` value references an existing template `id`.
@@ -1766,24 +1679,235 @@ In addition to the rules in §13, documents with block templates MUST satisfy:
 9. All `$paramName` references in template nodes resolve to declared template parameters or the reserved `$i`.
 10. `{$expr: "..."}` expressions are syntactically valid and reference declared parameters.
 
+> **Block Template Validation Checklist for Implementers:**
+> - [ ] Template IDs unique (rule 1)
+> - [ ] All `block_ref` values resolve (rule 2)
+> - [ ] Node IDs unique within each template (rule 3)
+> - [ ] Edge `from`/`to` reference valid template nodes (rule 4)
+> - [ ] `repeat.count` ≥ 1 (rule 5)
+> - [ ] `repeat.mode` is valid enum value (rule 6)
+> - [ ] Override indices in range (rule 7)
+> - [ ] No circular references — detect via DFS/traversal (rule 8)
+> - [ ] All `$paramName` resolve to declared params or `$i` (rule 9)
+> - [ ] `$expr` expressions parse and reference valid params (rule 10)
+> - [ ] Post-expansion graph has no dangling refs or duplicate IDs
+
 ### 25.12 Conformance Updates
 
-**Producer Conformance** (extends §20.1):
+**Producer Conformance** (extends [§20.1](#201-producer-conformance)):
 
 - A producer MAY emit `block_templates`, `block_ref`, and `repeat` fields.
 - A producer that emits block templates MUST ensure they expand to valid standard components.
 - A producer SHOULD use block templates for any architecture with ≥ 3 structurally identical repeated layers.
 
-**Consumer Conformance** (extends §20.2):
+**Consumer Conformance** (extends [§20.2](#202-consumer-conformance)):
 
 - A consumer MUST recognize `block_templates`, `block_ref`, and `repeat` fields.
 - A consumer MUST expand block references when constructing the architecture graph.
 - A consumer MAY provide both expanded and unexpanded views.
 
-**Validator Conformance** (extends §20.3):
+**Validator Conformance** (extends [§20.3](#203-validator-conformance)):
 
-- A validator MUST check all rules in §25.11.
+- A validator MUST check all rules in [§25.11](#2511-validation-rules-for-block-templates).
 - A validator SHOULD verify that expansion produces a valid graph (no dangling references, no duplicate IDs after expansion).
+
+---
+
+## Appendix A: Standard Parameter Name Catalog
+
+The following parameter names appear across the 288 architectures in the Atlas knowledge base. They are **recommended** (not required) for the indicated operator types.
+
+### Attention Parameters
+
+| Parameter | Type | Used By | Example |
+|-----------|------|---------|---------|
+| `numHeads` | integer | `multiHeadAttention`, `groupedQueryAttention`, `transformerBlock` | `12` |
+| `hiddenDim` | integer | `multiHeadAttention`, `feedForward` | `768` |
+| `embedDim` | integer | `groupedQueryAttention` | `4096` |
+| `numKVHeads` | integer | `groupedQueryAttention` | `8` |
+| `headDim` | integer | `groupedQueryAttention` | `128` |
+| `kvLatentDim` | integer | `mla` | `512` |
+| `qLatentDim` | integer | `mla` | `512` |
+| `ropeHeadDim` | integer | `mla` | `64` |
+
+### Convolution Parameters
+
+| Parameter | Type | Used By | Example |
+|-----------|------|---------|---------|
+| `inChannels` | integer | `conv2d`, `depthwiseConv2d`, `conv1d` | `3` |
+| `outChannels` | integer | `conv2d`, `depthwiseConv2d`, `conv1d` | `64` |
+| `kernelSize` | integer or array | `conv2d`, `depthwiseConv2d`, `conv1d` | `7` or `[3, 3]` |
+| `stride` | integer or array | `conv2d`, `depthwiseConv2d` | `2` |
+| `padding` | integer or array | `conv2d`, `depthwiseConv2d` | `3` |
+
+### Linear Parameters
+
+| Parameter | Type | Used By | Example |
+|-----------|------|---------|---------|
+| `inFeatures` | integer | `linear` | `1024` |
+| `outFeatures` | integer | `linear` | `4096` |
+| `bias` | boolean | `linear` | `true` |
+
+### Embedding Parameters
+
+| Parameter | Type | Used By | Example |
+|-----------|------|---------|---------|
+| `vocabSize` | integer | `embedding` | `30522` |
+| `embeddingDim` | integer | `embedding` | `768` |
+| `maxSeqLen` | integer | `embedding` | `512` |
+| `numEmbeddings` | integer | `embedding` | `50280` |
+
+### Normalization Parameters
+
+| Parameter | Type | Used By | Example |
+|-----------|------|---------|---------|
+| `normalizedShape` | integer | `layerNorm`, `rmsNorm` | `768` |
+| `numFeatures` | integer | `batchNorm` | `64` |
+
+### Feed-Forward Parameters
+
+| Parameter | Type | Used By | Example |
+|-----------|------|---------|---------|
+| `ffDim` | integer | `feedForward` | `3072` |
+| `intermediateSize` | integer | `swiglu`, `geglu` | `11008` |
+| `dim` | integer | `swiglu`, `geglu` | `4096` |
+
+### MoE Parameters
+
+| Parameter | Type | Used By | Example |
+|-----------|------|---------|---------|
+| `numExperts` | integer | `moeLayer`, `sharedExpertMoE` | `256` |
+| `expertDim` | integer | `moeLayer`, `sharedExpertMoE` | `7168` |
+| `topK` | integer | `moeLayer`, `sharedExpertMoE` | `8` |
+| `numSharedExperts` | integer | `sharedExpertMoE` | `1` |
+
+### Patch Embedding Parameters
+
+| Parameter | Type | Used By | Example |
+|-----------|------|---------|---------|
+| `imgSize` | integer | `patchEmbed` | `224` |
+| `patchSize` | integer | `patchEmbed` | `32` |
+| `embedDim` | integer | `patchEmbed` | `768` |
+| `inChans` | integer | `patchEmbed` | `3` |
+
+### Squeeze-Excitation Parameters
+
+| Parameter | Type | Used By | Example |
+|-----------|------|---------|---------|
+| `channels` | integer | `seBlock` | `32` |
+| `reduction` | integer | `seBlock` | `4` |
+
+### Input Parameters
+
+| Parameter | Type | Used By | Example |
+|-----------|------|---------|---------|
+| `shape` | array | `input` | `[1, 512, 768]` or `[3, 224, 224]` |
+
+---
+
+## Appendix B: Operator Type Frequency
+
+Based on analysis of 288 architectures (9,735 total components):
+
+| Type | Count | Category |
+|------|-------|----------|
+| `add` | 2228 | Structural |
+| `rmsNorm` | 1820 | Normalization |
+| `groupedQueryAttention` | 894 | Attention |
+| `swiglu` | 448 | Feed-Forward |
+| `custom` | 407 | Core/IO |
+| `conv2d` | 393 | Convolution |
+| `layerNorm` | 383 | Normalization |
+| `feedForward` | 312 | Feed-Forward |
+| `input` | 309 | Core/IO |
+| `output` | 291 | Core/IO |
+| `relu` | 237 | Activation |
+| `multiHeadAttention` | 232 | Attention |
+| `linear` | 200 | Linear |
+| `sharedExpertMoE` | 188 | Specialized |
+| `moeLayer` | 173 | Specialized |
+| `transformerBlock` | 139 | Structural |
+| `batchNorm` | 127 | Normalization |
+| `attention` | 97 | Attention |
+| `embedding` | 79 | Linear |
+| `concatenate` | 75 | Structural |
+
+**Total distinct operator types observed:** 79
+
+---
+
+## Appendix C: Scope Pattern Catalog
+
+Common scope patterns observed across the knowledge base:
+
+| Pattern | Occurrences | Meaning |
+|---------|-------------|---------|
+| `layer.N.attention` | 1283 | Attention sub-block within layer N |
+| `layer.N.ffn` | 710 | Feed-forward sub-block within layer N |
+| `layer.N` | 368 | Layer N (composite block) |
+| `block` | 116 | Generic block grouping |
+| `backbone` | 109 | Feature extraction backbone |
+| `encoder` | 78 | Encoder section |
+| `decoder` | 48 | Decoder section |
+| `head` | 44 | Task-specific output head |
+| `heads` | 44 | Multiple output heads |
+| `embeddings` | 39 | Embedding layer group |
+| `training` | 39 | Training-related components |
+| `features.stage.N` | 31 | Feature pyramid stage N |
+| `encoder.layer.N.attention` | 30 | Encoder layer N attention |
+| `mlp` | 27 | MLP sub-block |
+
+---
+
+## Appendix D: Implementation Notes
+
+### D.1 JSON Parsing
+
+NAXS documents are standard JSON. Any JSON parser can consume them. No custom parser is required.
+
+Key implementation considerations:
+- Use a JSON parser that preserves unknown fields (e.g. serde's `#[serde(flatten)]` in Rust, `**kwargs` in Python).
+- Parameter values are heterogeneous (`int`, `float`, `bool`, `string`, `array`). Use a tagged union or `JsonValue` type.
+- `position` is always `{ "x": number, "y": number }`. Treat as `f64` for maximum precision.
+
+### D.2 Graph Construction
+
+To construct a directed graph from a NAXS document:
+
+1. Create a node for each component, keyed by `id`.
+2. For each connection, create a directed edge from `from` to `to`.
+3. Verify that component `inputs`/`outputs` are consistent with connections ([§13.2](#132-consistency), rules 9-10).
+4. The graph may be cyclic (recurrent architectures). Do not assume acyclicity.
+
+### D.3 Operator Type Resolution
+
+When resolving operator types:
+
+1. Check if `type` is in the standard registry ([§7.1](#71-standard-operator-types)).
+2. If not, treat the component as an opaque node with its `params` preserved.
+3. Do not fail on unknown types.
+4. For `custom` type, use the `name` field as a human-readable description.
+
+### D.4 Parameter Type Coercion
+
+When reading parameters:
+
+- JSON integers → `int64`
+- JSON floats → `float64`
+- JSON booleans → `bool`
+- JSON strings → `string` (or symbolic dimension if in a shape array)
+- JSON arrays → `list` of mixed `int64`/`string`
+- Do not coerce between types (e.g. do not treat `768` as `768.0`).
+
+### D.5 Round-Trip Fidelity
+
+To ensure round-trip fidelity (read → write → read produces identical semantics):
+
+1. Preserve all fields, including unknown ones.
+2. Preserve key ordering within objects (use an ordered map, not a hash map).
+3. Do not modify parameter values during transit.
+4. Preserve numeric precision (do not convert integers to floats).
+5. Preserve `null` values in extension fields (but `null` is not a valid parameter value).
 
 ---
 
